@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Debug.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="model\Bullet.cpp" />
+    <ClCompile Include="model\BulletParams.cpp" />
+    <ClCompile Include="model\ColoredVertex.cpp" />
+    <ClCompile Include="model\ColorFloat.cpp" />
+    <ClCompile Include="model\CustomData.cpp" />
+    <ClCompile Include="model\ExplosionParams.cpp" />
+    <ClCompile Include="model\Game.cpp" />
+    <ClCompile Include="model\Item.cpp" />
+    <ClCompile Include="model\JumpState.cpp" />
+    <ClCompile Include="model\Level.cpp" />
+    <ClCompile Include="model\LootBox.cpp" />
+    <ClCompile Include="model\Mine.cpp" />
+    <ClCompile Include="model\Player.cpp" />
+    <ClCompile Include="model\PlayerMessageGame.cpp" />
+    <ClCompile Include="model\PlayerView.cpp" />
+    <ClCompile Include="model\Properties.cpp" />
+    <ClCompile Include="model\ServerMessageGame.cpp" />
+    <ClCompile Include="model\Unit.cpp" />
+    <ClCompile Include="model\UnitAction.cpp" />
+    <ClCompile Include="model\Vec2Double.cpp" />
+    <ClCompile Include="model\Vec2Float.cpp" />
+    <ClCompile Include="model\Weapon.cpp" />
+    <ClCompile Include="model\WeaponParams.cpp" />
+    <ClCompile Include="MyStrategy.cpp" />
+    <ClCompile Include="Stream.cpp" />
+    <ClCompile Include="TcpStream.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Debug.hpp" />
+    <ClInclude Include="Helpers.h" />
+    <ClInclude Include="model\Bullet.hpp" />
+    <ClInclude Include="model\BulletParams.hpp" />
+    <ClInclude Include="model\ColoredVertex.hpp" />
+    <ClInclude Include="model\ColorFloat.hpp" />
+    <ClInclude Include="model\CustomData.hpp" />
+    <ClInclude Include="model\ExplosionParams.hpp" />
+    <ClInclude Include="model\Game.hpp" />
+    <ClInclude Include="model\Item.hpp" />
+    <ClInclude Include="model\JumpState.hpp" />
+    <ClInclude Include="model\Level.hpp" />
+    <ClInclude Include="model\LootBox.hpp" />
+    <ClInclude Include="model\Mine.hpp" />
+    <ClInclude Include="model\MineState.hpp" />
+    <ClInclude Include="model\Player.hpp" />
+    <ClInclude Include="model\PlayerMessageGame.hpp" />
+    <ClInclude Include="model\PlayerView.hpp" />
+    <ClInclude Include="model\Properties.hpp" />
+    <ClInclude Include="model\ServerMessageGame.hpp" />
+    <ClInclude Include="model\Tile.hpp" />
+    <ClInclude Include="model\Unit.hpp" />
+    <ClInclude Include="model\UnitAction.hpp" />
+    <ClInclude Include="model\Vec2Double.hpp" />
+    <ClInclude Include="model\Vec2Float.hpp" />
+    <ClInclude Include="model\Weapon.hpp" />
+    <ClInclude Include="model\WeaponParams.hpp" />
+    <ClInclude Include="model\WeaponType.hpp" />
+    <ClInclude Include="MyStrategy.hpp" />
+    <ClInclude Include="Stream.hpp" />
+    <ClInclude Include="TcpStream.hpp" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{8285AE65-9F4C-4C94-9CEB-5C9E63596EDB}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.18362.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

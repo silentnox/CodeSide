@@ -1,0 +1,18 @@
+﻿  MyStrategy.cpp
+g:\code\codeside\cpp\helpers.h(11): warning C4005: '_ITERATOR_DEBUG_LEVEL': macro redefinition
+  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.16.27023\include\yvals.h(121): note: see previous definition of '_ITERATOR_DEBUG_LEVEL'
+g:\code\codeside\cpp\helpers.h(266): warning C4244: 'return': conversion from 'time_t' to 'long', possible loss of data
+g:\code\codeside\cpp\helpers.h(269): warning C4244: 'return': conversion from 'time_t' to 'long', possible loss of data
+g:\code\codeside\cpp\mystrategy.cpp(38): warning C4244: 'argument': conversion from 'double' to 'const unsigned int', possible loss of data
+g:\code\codeside\cpp\mystrategy.cpp(152): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\cpp\mystrategy.cpp(153): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\cpp\mystrategy.cpp(170): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\cpp\mystrategy.cpp(181): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+g:\code\codeside\cpp\mystrategy.cpp(187): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\cpp\mystrategy.cpp(194): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+g:\code\codeside\cpp\mystrategy.cpp(202): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\cpp\mystrategy.cpp(224): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\cpp\mystrategy.cpp(229): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\cpp\mystrategy.cpp(302): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\cpp\mystrategy.cpp(302): warning C4305: 'argument': truncation from 'double' to 'float'
+  CodeSide.vcxproj -> G:\Code\CodeSide\cpp\Debug\CodeSide.exe

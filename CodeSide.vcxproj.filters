@@ -1,0 +1,173 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+    <Filter Include="model">
+      <UniqueIdentifier>{4124a12e-3291-48d9-966f-57a632419764}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="model\Bullet.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\BulletParams.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\ColoredVertex.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\ColorFloat.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\CustomData.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\ExplosionParams.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\Game.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\Item.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\JumpState.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\Level.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\LootBox.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\Mine.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\Player.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\PlayerMessageGame.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\PlayerView.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\Properties.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\ServerMessageGame.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\Unit.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\UnitAction.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\Vec2Double.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\Vec2Float.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\Weapon.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="model\WeaponParams.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="MyStrategy.cpp" />
+    <ClCompile Include="Stream.cpp" />
+    <ClCompile Include="TcpStream.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="model\Bullet.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\BulletParams.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\ColoredVertex.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\ColorFloat.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\CustomData.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\ExplosionParams.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\Game.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\Item.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\JumpState.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\Level.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\LootBox.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\Mine.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\MineState.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\Player.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\PlayerMessageGame.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\PlayerView.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\Properties.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\ServerMessageGame.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\Tile.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\Unit.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\UnitAction.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\Vec2Double.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\Vec2Float.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\Weapon.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\WeaponParams.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\WeaponType.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="Debug.hpp" />
+    <ClInclude Include="MyStrategy.hpp" />
+    <ClInclude Include="Stream.hpp" />
+    <ClInclude Include="TcpStream.hpp" />
+    <ClInclude Include="Helpers.h" />
+  </ItemGroup>
+</Project>
