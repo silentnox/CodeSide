@@ -25,6 +25,8 @@
 #include <memory>
 #include <memory>
 
+#include "UnitAction.hpp"
+
 class Unit {
 public:
     int playerId;
@@ -39,6 +41,9 @@ public:
     bool onLadder;
     int mines;
     std::shared_ptr<Weapon> weapon;
+	int jumpTicks = 0;
+	UnitAction action;
+
     Unit();
     Unit(int playerId, int id, int health, Vec2Double position, Vec2Double size, JumpState jumpState, bool walkedRight, bool stand, bool onGround, bool onLadder, int mines, std::shared_ptr<Weapon> weapon);
     static Unit readFrom(InputStream& stream);

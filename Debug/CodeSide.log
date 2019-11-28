@@ -1,18 +1,18 @@
 ﻿  MyStrategy.cpp
-g:\code\codeside\cpp\helpers.h(11): warning C4005: '_ITERATOR_DEBUG_LEVEL': macro redefinition
-  c:\program files (x86)\microsoft visual studio\2017\community\vc\tools\msvc\14.16.27023\include\yvals.h(121): note: see previous definition of '_ITERATOR_DEBUG_LEVEL'
-g:\code\codeside\cpp\helpers.h(266): warning C4244: 'return': conversion from 'time_t' to 'long', possible loss of data
-g:\code\codeside\cpp\helpers.h(269): warning C4244: 'return': conversion from 'time_t' to 'long', possible loss of data
-g:\code\codeside\cpp\mystrategy.cpp(38): warning C4244: 'argument': conversion from 'double' to 'const unsigned int', possible loss of data
-g:\code\codeside\cpp\mystrategy.cpp(152): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-g:\code\codeside\cpp\mystrategy.cpp(153): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-g:\code\codeside\cpp\mystrategy.cpp(170): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-g:\code\codeside\cpp\mystrategy.cpp(181): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
-g:\code\codeside\cpp\mystrategy.cpp(187): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-g:\code\codeside\cpp\mystrategy.cpp(194): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
-g:\code\codeside\cpp\mystrategy.cpp(202): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-g:\code\codeside\cpp\mystrategy.cpp(224): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-g:\code\codeside\cpp\mystrategy.cpp(229): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-g:\code\codeside\cpp\mystrategy.cpp(302): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
-g:\code\codeside\cpp\mystrategy.cpp(302): warning C4305: 'argument': truncation from 'double' to 'float'
-  CodeSide.vcxproj -> G:\Code\CodeSide\cpp\Debug\CodeSide.exe
+g:\code\codeside\mystrategy.cpp(38): warning C4244: 'argument': conversion from 'double' to 'const unsigned int', possible loss of data
+g:\code\codeside\mystrategy.cpp(89): warning C4239: nonstandard extension used: 'argument': conversion from 'Vec2' to 'Vec2 &'
+  g:\code\codeside\mystrategy.cpp(89): note: A non-const reference may only be bound to an lvalue
+g:\code\codeside\mystrategy.cpp(109): warning C4239: nonstandard extension used: 'argument': conversion from 'Vec2' to 'Vec2 &'
+  g:\code\codeside\mystrategy.cpp(109): note: A non-const reference may only be bound to an lvalue
+g:\code\codeside\mystrategy.cpp(217): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\mystrategy.cpp(218): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\mystrategy.cpp(238): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\mystrategy.cpp(249): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+g:\code\codeside\mystrategy.cpp(255): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\mystrategy.cpp(262): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+g:\code\codeside\mystrategy.cpp(269): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\mystrategy.cpp(290): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\mystrategy.cpp(295): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\mystrategy.cpp(369): warning C4244: 'argument': conversion from 'double' to 'float', possible loss of data
+g:\code\codeside\mystrategy.cpp(369): warning C4305: 'argument': truncation from 'double' to 'float'
+  CodeSide.vcxproj -> G:\Code\CodeSide\Debug\CodeSide.exe

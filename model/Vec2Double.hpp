@@ -4,12 +4,17 @@
 #include "../Stream.hpp"
 #include <string>
 
-class Vec2Double {
+#include "../Helpers.h"
+
+class Vec2;
+
+class Vec2Double : public Vec2 {
 public:
-    double x;
-    double y;
+    //double x;
+    //double y;
     Vec2Double();
     Vec2Double(double x, double y);
+	Vec2Double( const Vec2 & in );
     static Vec2Double readFrom(InputStream& stream);
     void writeTo(OutputStream& stream) const;
     std::string toString() const;

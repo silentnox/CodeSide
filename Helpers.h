@@ -8,7 +8,7 @@
 #ifndef _H_HELPERS
 #define _H_HELPERS
 
-#define _ITERATOR_DEBUG_LEVEL 0
+//#define _ITERATOR_DEBUG_LEVEL 0
 
 #include <string>
 #include <iostream>
@@ -187,7 +187,7 @@ namespace stdh {
 	}
 
 	// parse simple enum where indexation starts from 0 and names are offseted by 1
-	int parse_enum( const std::string & in, const std::initializer_list<const char *> & names, const int def = -1 ) {
+	inline int parse_enum( const std::string & in, const std::initializer_list<const char *> & names, const int def = -1 ) {
 		int id = 0;
 		for (auto name : names) {
 			if (in == name) return id; id++;
@@ -263,10 +263,10 @@ public:
 		Total = 0;
 	}
 	inline long GetMsec() const {
-		return TimeEnd / (CLOCKS_PER_SEC * 1000);
+		return (long)(TimeEnd / (CLOCKS_PER_SEC * 1000));
 	}
 	inline long GetTotalMsec() const {
-		return Total / (CLOCKS_PER_SEC * 1000);
+		return (long)(Total / (CLOCKS_PER_SEC * 1000));
 	}
 	inline float GetTotalSeconds() const {
 		return (float)Total / CLOCKS_PER_SEC;
@@ -278,38 +278,38 @@ public:
 
 };
 
-class Color {
-public:
-	float r, g, b, a;
-
-	Color() {}
-	Color( float _r, float _g, float _b, float _a = 1.0f ) :r( _r ), g( _g ), b( _b ), a( _a ) {};
-	Color( char _r, char _g, char _b, char _a = 1 ) : r( _r / 255.0f ), g( _g / 255.0f ), b( _b / 255.0f ), a( _a / 255.0f ) {};
-
-	Color SetRed( float _r ) const {
-		return Color( _r, g, b, a );
-	}
-	Color SetGreen( float _g ) const {
-		return Color( r, _g, b, a );
-	}
-	Color SetBlue( float _b ) const {
-		return Color( r, g, _b, a );
-	}
-	Color SetAlpha( float _a ) const {
-		return Color( r, g, b, _a );
-	}
-
-	float operator[]( int index ) const {
-		return (&r)[index];
-	}
-	float & operator[]( int index ) {
-		return (&r)[index];
-	}
-
-	static const Color RED;
-};
-
-const Color Color::RED( 1.0f, 0.0f, 0.0f, 1.0f );
+//class Color {
+//public:
+//	float r, g, b, a;
+//
+//	Color() {}
+//	Color( float _r, float _g, float _b, float _a = 1.0f ) :r( _r ), g( _g ), b( _b ), a( _a ) {};
+//	Color( char _r, char _g, char _b, char _a = 1 ) : r( _r / 255.0f ), g( _g / 255.0f ), b( _b / 255.0f ), a( _a / 255.0f ) {};
+//
+//	Color SetRed( float _r ) const {
+//		return Color( _r, g, b, a );
+//	}
+//	Color SetGreen( float _g ) const {
+//		return Color( r, _g, b, a );
+//	}
+//	Color SetBlue( float _b ) const {
+//		return Color( r, g, _b, a );
+//	}
+//	Color SetAlpha( float _a ) const {
+//		return Color( r, g, b, _a );
+//	}
+//
+//	float operator[]( int index ) const {
+//		return (&r)[index];
+//	}
+//	float & operator[]( int index ) {
+//		return (&r)[index];
+//	}
+//
+//	static const Color RED;
+//};
+//
+//const Color Color::RED( 1.0f, 0.0f, 0.0f, 1.0f );
 
 
 class Vec3 {
@@ -464,7 +464,9 @@ public:
 	}
 };
 
-struct Vec2 {
+class Vec2 {
+public:
+
 	double x, y;
 
 	inline Vec2() :x( 0 ), y( 0 ) {};
@@ -700,6 +702,10 @@ public:
 
 	Rect( const Vec2 & min, Vec2 & max ) : Min(min), Max(max) {
 	}
+
+	Rect( float a, float b, float c, float d ) : Min( a, b ), Max( c, d ) {};
+
+	Rect( const Vec2 & center, float size ) : Min( center.x - size * 0.5, center.y - size * 0.5 ), Max( center.x + size * 0.5, center.y + size * 0.5 ) {};
 
 	Rect & operator+=( const Vec2 & offset ) {
 		Min += offset;

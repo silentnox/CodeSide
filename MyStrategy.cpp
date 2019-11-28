@@ -3,7 +3,7 @@
 
 MyStrategy::MyStrategy() {}
 
-double distanceSqr(Vec2Double a, Vec2Double b) {
+double distanceSqr(Vec2 a, Vec2 b) {
   return (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
 }
 
@@ -72,78 +72,145 @@ UnitAction Quickstart( const Unit &unit, const Game &game, Debug &debug ) {
 	return action;
 }
 
-Vec2 fv2d( const Vec2Double & v ) {
-	return Vec2( v.x, v.y );
+//Vec2 fv2d( const Vec2 & v ) {
+//	return Vec2( v.x, v.y );
+//}
+//Vec2 tv2d( const Vec2 & v ) {
+//	return Vec2( v.x, v.y );
+//}
+
+Properties props;
+Level level;
+
+Tile Tiles[40][30];
+std::vector<ipair> TilesByType[5];
+
+Rect GetUnitRect( const Unit & u ) {
+	return Rect( Vec2( u.position.x - u.size.x * 0.5, u.position.y ), Vec2( u.position.x + u.size.x * 0.5, u.position.y + u.size.y ) );
 }
-Vec2Double tv2d( const Vec2 & v ) {
-	return Vec2Double( v.x, v.y );
+
+//bool IsOnTile( const Rect & rect, Tile tile ) {
+//	for (int i = 0; i < 40; i++) {
+//		for (int j = 0; j < 30; j++) {
+//			Tile t = level.tiles[i][j];
+//			if (t == tile) {
+//				Vec2 c( i, j );
+//				Rect r( c, c + Vec2( 1, 1 ) );
+//				if (rect.Intersects( r )) return true;
+//			}
+//		}
+//	}
+//	return false;
+//}
+
+bool IsOnTile( const Rect & rect, Tile tile ) {
+	for (ipair v : TilesByType[tile]) {
+		Vec2 c( v.first, v.second );
+		Rect r( c, c + Vec2( 1, 1 ) );
+		if (rect.Intersects( r )) return true;
+	}
+	if (tile == WALL) {
+		if (rect.Intersects( Rect( 0,0,1,30))) return true;
+		if (rect.Intersects( Rect( 0,0,40,1))) return true;
+		if (rect.Intersects( Rect( 39,0,40,30))) return true;
+		if (rect.Intersects( Rect( 0,29,40,30))) return true;
+	}
+	return false;
+}
+
+//Tile GetTileAt( const Vec2 & p ) {
+//	int x = (int)floor( p.x );
+//	int y = (int)floor( p.y );
+//	return level.tiles[x][y];
+//}
+
+Tile GetTileAt( const Vec2 & p ) {
+	int x = (int)floor( p.x );
+	int y = (int)floor( p.y );
+	return Tiles[x][y];
+}
+
+void InitStrat( const Game &game ) {
+	if (game.currentTick != 0) return;
+
+	props = game.properties;
+	level = game.level;
+
+	for (int i = 0; i < 40; i++) {
+		for (int j = 0; j < 30; j++) {
+			Tile tile = level.tiles[i][j];
+			Tiles[i][j] = tile;
+			if (tile != WALL || (i != 0 && j != 0 && i != 39 && j != 29 ) ) {
+				TilesByType[tile].emplace_back( ipair( i, j ) );
+			}
+		}
+	}
 }
 
 class Sim {
 public:
 
-	class Unit {
-	public:
-		int playerId;
-		int id;
-		int health;
-		Vec2 position;
-		Vec2 size;
-		bool onGround;
-		bool onLadder;
-		JumpState jumpState;
-		UnitAction action;
+	//class Unit {
+	//public:
+	//	int playerId;
+	//	int id;
+	//	int health;
+	//	Vec2 position;
+	//	Vec2 size;
+	//	bool onGround;
+	//	bool onLadder;
+	//	JumpState jumpState;
+	//	UnitAction action;
 
-		//float jumpTime = 0;
-		int jumpTicks = 0;
+	//	//float jumpTime = 0;
+	//	int jumpTicks = 0;
 
-		Unit( const ::Unit & u ) {
-			playerId = u.playerId;
-			id = u.id;
-			health = u.health;
-			position = fv2d( u.position );
-			size = fv2d( u.size );
-			onGround = u.onGround;
-			onLadder = u.onLadder;
-			jumpState = u.jumpState;
-		}
-	};
+	//	Unit( const ::Unit & u ) {
+	//		playerId = u.playerId;
+	//		id = u.id;
+	//		health = u.health;
+	//		position = fv2d( u.position );
+	//		size = fv2d( u.size );
+	//		onGround = u.onGround;
+	//		onLadder = u.onLadder;
+	//		jumpState = u.jumpState;
+	//	}
+	//};
 
-	Properties props;
-	Level level;
+	//class Bullet {
+	//public:
+	//	WeaponType weaponType;
+	//	int unitId;
+	//	int playerId;
+	//	Vec2 position;
+	//	Vec2 velocity;
+	//	int damage;
+	//	double size;
+	//	bool explosive;
+	//	float explRange;
+	//	int explDamage;
+
+	//	Bullet( const ::Bullet & b ) {
+	//		weaponType = b.weaponType;
+	//		unitId = b.unitId;
+	//		playerId = b.playerId;
+	//		position = fv2d( b.position );
+	//		velocity = fv2d( b.velocity );
+	//		damage = b.damage;
+	//		size = b.size;
+	//	}
+	//};
 
 	int currentTick;
-	std::vector<Player> players;
+	//std::vector<Player> players;
 	std::vector<Unit> units;
-	std::vector<Bullet> bullets;
-	std::vector<Mine> mines;
-	std::vector<LootBox> lootBoxes;
+	std::vector<::Bullet> bullets;
+	std::vector<::Mine> mines;
+	std::vector<::LootBox> lootBoxes;
+
+	int microticks = 100;
 
 	Sim() {
-	}
-
-	Rect GetUnitRect( const Unit & u ) const {
-		return Rect( Vec2( u.position.x - u.size.x * 0.5, u.position.y ), Vec2( u.position.x + u.size.x * 0.5, u.position.y + u.size.y ) );
-	}
-
-	bool IsOnTile( const Rect & rect, Tile tile ) {
-		for (int i = 0; i < 40; i++) {
-			for (int j = 0; j < 30; j++) {
-				Tile t = level.tiles[i][j];
-				if (t == tile) {
-					Vec2 c( i, j );
-					Rect r( c, c + Vec2( 1, 1 ) );
-					if (rect.Intersects( r )) return true;
-				}
-			}
-		}
-		return false;
-	}
-
-	Tile GetTileAt( const Vec2 & p ) const {
-		int x = (int)floor( p.x );
-		int y = (int)floor( p.y );
-		return level.tiles[x][y];
 	}
 
 	void MoveUnit( Unit & u ) {
@@ -164,6 +231,10 @@ public:
 		bool touchJumppad = IsOnTile( r, JUMP_PAD );
 		bool onLadder = GetTileAt( u.position + Vec2( 0, u.size.y * 0.5 ) ) == LADDER || GetTileAt( u.position + Vec2( 0, u.size.y ) ) == LADDER;
 
+		if (onPlatform && ( GetTileAt( u.position + Vec2( -u.size.x * 0.5 , 0 ) ) != EMPTY || GetTileAt( u.position + Vec2( u.size.x * 0.5, 0 ) ) != EMPTY ) ) {
+			onPlatform = false;
+			inAir = true;
+		}
 
 		//Vec2 offset;
 		float ox = a.velocity * delta;
@@ -195,15 +266,13 @@ public:
 					}
 				}
 			}
-			else {
-				if (a.jumpDown) {
-					if (onLadder || onPlatform) {
-						oy = -props.unitFallSpeed;
-					}
-					else {
-						if (u.jumpState.canCancel) {
-							cancelJump = true;
-						}
+			else if (a.jumpDown) {	
+				if (onLadder || onPlatform) {
+					oy = -props.unitFallSpeed;
+				}
+				else {
+					if (u.jumpState.canCancel) {
+						cancelJump = true;
 					}
 				}
 			}
@@ -251,9 +320,45 @@ public:
 		u.position.y += oy;
 	}
 
+	vint UnitsInRect( Rect rect ) const {
+		vint res;
+		for (int i = 0; i < units.size(); i++) {
+			if (rect.Intersects( GetUnitRect( units[i] ) )) {
+				res.emplace_back( i );
+			}
+		}
+		return res;
+	}
+
+	void MoveBullet( Bullet & b ) {
+		float delta = 1.0 / (props.ticksPerSecond * props.updatesPerTick);
+		b.position += b.velocity * delta;
+
+		Rect r( b.position - Vec2( b.size*0.5, b.size*0.5 ), b.position + Vec2( b.size*0.5, b.size*0.5 ) );
+
+		vint hit = UnitsInRect( r );
+
+		if (IsOnTile( r, WALL ) || !hit.empty() ) {
+			if (b.explosionParams) {
+				hit = UnitsInRect( Rect( b.position, b.explosionParams->radius ) );
+				for (int i : hit) {
+					Unit & u = units[i];
+					u.health -= b.explosionParams->damage;
+				}
+			}
+			else {
+				if (!units.empty()) {
+					Unit & u = units[hit[0]];
+					u.health -= b.damage;
+				}
+			}
+			stdh::erase( bullets, b );
+		}
+	}
+
 	void SetState( const Game & g ) {
 		currentTick = g.currentTick;
-		players = g.players;
+		//players = g.players;
 		bullets = g.bullets;
 		mines = g.mines;
 		lootBoxes = g.lootBoxes;
@@ -261,6 +366,8 @@ public:
 		for (const ::Unit & u : g.units) {
 			units.emplace_back( u );
 		}
+
+		//std::sort( units.begin(), units.end(), []( const Unit & a, const Unit & b ) { return a.id < b.id;  } );
 	}
 
 	void Microtick() {
@@ -273,6 +380,7 @@ public:
 		for (int i = 0; i < props.updatesPerTick; i++) {
 			Microtick();
 		}
+		currentTick++;
 	}
 
 	void Simulate( int numTicks ) {
@@ -287,8 +395,8 @@ std::vector<CustomData::Rect> drawpath;
 Sim sim;
 void GenPath( const Unit &unit, const Game &game ) {
 //	Sim sim;
-	sim.level = game.level;
-	sim.props = game.properties;
+	//level = game.level;
+	//props = game.properties;
 	sim.units.emplace_back( unit );
 	sim.units[0].action.velocity = -10;
 	sim.units[0].action.jump = true;
@@ -305,6 +413,7 @@ void GenPath( const Unit &unit, const Game &game ) {
 }
 
 UnitAction MyStrategy::getAction(const Unit &unit, const Game &game, Debug &debug) {
+	InitStrat( game );
 	if (game.currentTick == 0) {
 		GenPath( unit, game );
 	}
@@ -312,7 +421,7 @@ UnitAction MyStrategy::getAction(const Unit &unit, const Game &game, Debug &debu
 		debug.draw( r );
 	}
 
-	debug.draw( CustomData::Log( std::string( "Touch jumppad: " ) + std::to_string( sim.IsOnTile( sim.GetUnitRect(unit), JUMP_PAD ) ) ) );
+	debug.draw( CustomData::Log( std::string( "Touch jumppad: " ) + std::to_string( IsOnTile( GetUnitRect(unit), JUMP_PAD ) ) ) );
 
 	//return Quickstart( unit, game, debug );
 	UnitAction a;
