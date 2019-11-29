@@ -28,6 +28,8 @@ public:
     static Bullet readFrom(InputStream& stream);
     void writeTo(OutputStream& stream) const;
     std::string toString() const;
+
+	bool operator==( const Bullet & b ) const;
 };
 
 #endif

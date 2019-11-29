@@ -1,6 +1,8 @@
 #include "UnitAction.hpp"
 
-UnitAction::UnitAction() { }
+UnitAction::UnitAction() : velocity( 0 ), jump( false ), jumpDown( false ), aim( Vec2(0,0) ), shoot( false ), swapWeapon( false ), plantMine( false ) {
+	
+}
 UnitAction::UnitAction(double velocity, bool jump, bool jumpDown, Vec2Double aim, bool shoot, bool swapWeapon, bool plantMine) : velocity(velocity), jump(jump), jumpDown(jumpDown), aim(aim), shoot(shoot), swapWeapon(swapWeapon), plantMine(plantMine) { }
 UnitAction UnitAction::readFrom(InputStream& stream) {
     UnitAction result;

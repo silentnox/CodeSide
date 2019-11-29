@@ -58,3 +58,8 @@ std::string Bullet::toString() const {
         "TODO" + 
         ")";
 }
+
+bool Bullet::operator==( const Bullet & b ) const
+{
+	return &b == this;
+}

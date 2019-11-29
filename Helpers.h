@@ -4,6 +4,8 @@
 
 #pragma warning( disable : 4100 ) // unreferenced formal parameter
 #pragma warning( disable : 4018 ) // signed/unsigned mismatch
+#pragma warning( disable : 4244 ) // conversion from * to * possible loss of data
+#pragma warning( disable : 4239 ) // nonstandard extension used : 'argument' : conversion from '*' to '* &'
 
 #ifndef _H_HELPERS
 #define _H_HELPERS

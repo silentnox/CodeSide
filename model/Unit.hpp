@@ -42,6 +42,7 @@ public:
     int mines;
     std::shared_ptr<Weapon> weapon;
 	int jumpTicks = 0;
+	Vec2 prevAim = Vec2( 0, 0 );
 	UnitAction action;
 
     Unit();
