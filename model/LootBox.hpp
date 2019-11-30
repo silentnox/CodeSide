@@ -22,6 +22,7 @@ public:
     static LootBox readFrom(InputStream& stream);
     void writeTo(OutputStream& stream) const;
     std::string toString() const;
+	bool operator==( const LootBox & in ) const;
 };
 
 #endif

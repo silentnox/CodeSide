@@ -18,7 +18,7 @@
 
 class Weapon {
 public:
-    WeaponType typ;
+    WeaponType type;
     WeaponParams params;
     int magazine;
     bool wasShooting;

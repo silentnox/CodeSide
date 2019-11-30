@@ -5,7 +5,7 @@
 #pragma warning( disable : 4100 ) // unreferenced formal parameter
 #pragma warning( disable : 4018 ) // signed/unsigned mismatch
 #pragma warning( disable : 4244 ) // conversion from * to * possible loss of data
-#pragma warning( disable : 4239 ) // nonstandard extension used : 'argument' : conversion from '*' to '* &'
+//#pragma warning( disable : 4239 ) // nonstandard extension used : 'argument' : conversion from '*' to '* &'
 
 #ifndef _H_HELPERS
 #define _H_HELPERS
@@ -44,8 +44,8 @@ inline double Sqr( double d ) {
 	return d * d;
 }
 
-inline double Sign( double d ) {
-	return (d > 0) ? 1 : -1;
+inline double Sign( double d, float eps = 0. ) {
+	return (d > 0) ? ((d > eps)?1:0) : ((d<-eps)?-1:0);
 }
 
 #undef min
@@ -145,9 +145,14 @@ namespace stdh {
 		in.erase( std::remove_if( in.begin(), in.end(), [&subset]( const auto & t ) { return has_item( subset, t ); } ), in.end() );
 	}
 
+	template <typename T, typename T2, typename Equal>
+	void erase( T & in, const T2 & item, Equal eq ) {
+		in.erase( std::remove_if( in.begin(), in.end(), [&item,eq]( const auto & t ) { return eq( t, item ); } ), in.end() );
+	}
+
 	template <typename T, typename T2>
 	void erase( T & in, const T2 & item ) {
-		in.erase( std::remove_if( in.begin(), in.end(), [&item]( const auto & t ) { return t == item; } ), in.end() );
+		in.erase( std::remove_if( in.begin(), in.end(), [&item]( const auto & t ) { return t ==  item; } ), in.end() );
 	}
 
 	template<typename T>
@@ -195,6 +200,11 @@ namespace stdh {
 			if (in == name) return id; id++;
 		}
 		return def;
+	}
+
+	template <typename T>
+	bool pointer_equal( const T & a, const T & b ) {
+		return &a == &b;
 	}
 
 }
@@ -517,7 +527,7 @@ public:
 	inline Vec2 Perp() const {
 		return Vec2( -y, x );
 	}
-	inline Vec2 DirTo( const Vec2 & in ) const {
+	inline Vec2 DirTo( const Vec2 in ) const {
 		return (in - *this).Normalized();
 	}
 	inline double Dot( Vec2 InV ) const {
@@ -543,6 +553,9 @@ public:
 	inline Vec2 Rescale( double in ) const {
 		double lvLen = Len();
 		return Vec2( x, y ) * (in / lvLen);
+	}
+	inline Vec2 Rotate( double rad ) const {
+		return Vec2( cos( rad*x ) - sin( rad*y ), sin( rad*x ) + cos( rad*y ) );
 	}
 	inline Vec2 Lerped( double t, Vec2 to ) const {
 		return (*this)*(1 - t) + to * t;
@@ -627,16 +640,16 @@ struct Line2 {
 		Dist = C;
 	}
 
-	inline Line2( const Vec2 & InNormal, double InDist ) {
+	inline Line2( const Vec2 InNormal, double InDist ) {
 		Normal = InNormal;
 		Dist = InDist;
 	}
 
-	inline Line2( const Vec2 & InA, const Vec2 & InB ) {
+	inline Line2( const Vec2 InA, const Vec2 & InB ) {
 		FromSegment( InA, InB );
 	}
 
-	inline void FromSegment( const Vec2 & InA, const Vec2 & InB ) {
+	inline void FromSegment( const Vec2 InA, const Vec2 & InB ) {
 		Normal.x = InA.y - InB.y;
 		Normal.y = InB.x - InA.x;
 		if (!Normal.IsEpsilon()) Normal = Normal.Normalized();
@@ -649,11 +662,11 @@ struct Line2 {
 	//	Dist = point.x*dir.y - dir.x*point.y;
 	//}
 
-	inline void FromRay( const Vec2 & point, const Vec2 & dir ) {
+	inline void FromRay( const Vec2 point, const Vec2 & dir ) {
 		FromSegment( point, point + dir );
 	}
 
-	inline void FromOrigin( const Vec2 & dir ) {
+	inline void FromOrigin( const Vec2 dir ) {
 		//Normal.x = -dir.y;
 		//Normal.y = dir.x;
 		//Dist = 0;
@@ -702,25 +715,45 @@ public:
 
 	}
 
-	Rect( const Vec2 & min, Vec2 & max ) : Min(min), Max(max) {
+	Rect( const Vec2 min, Vec2 max ) : Min(min), Max(max) {
 	}
 
 	Rect( float a, float b, float c, float d ) : Min( a, b ), Max( c, d ) {};
 
-	Rect( const Vec2 & center, float size ) : Min( center.x - size * 0.5, center.y - size * 0.5 ), Max( center.x + size * 0.5, center.y + size * 0.5 ) {};
+	Rect( const Vec2 center, float size ) : Min( center.x - size * 0.5, center.y - size * 0.5 ), Max( center.x + size * 0.5, center.y + size * 0.5 ) {};
 
-	Rect & operator+=( const Vec2 & offset ) {
+	Rect & operator+=( const Vec2 offset ) {
 		Min += offset;
 		Max += offset;
 		return *this;
 	}
 
-	bool Contains( const Vec2 & point ) const {
+	bool Contains( const Vec2 point ) const {
 		return Min.x < point.x && Min.y < point.y && Max.x > point.x && Max.y > point.y;
 	}
-	bool Intersects( const Rect & rect ) const {
-		//return Contains( rect.Min ) || Contains( rect.Max ) || rect.Contains( Min ) || rect.Contains( Max );
+	bool Intersects( const Rect rect ) const {
 		return (Min.x < rect.Max.x && rect.Min.x < Max.x && Min.y < rect.Max.y && rect.Min.y < Max.y);
+	}
+	float Raycast( Vec2 orig, Vec2 dir ) const {
+		float t0x = (Min.x - orig.x) / dir.x;
+		float t1x = (Max.x - orig.x) / dir.x;
+		float t0y = (Min.y - orig.y) / dir.y;
+		float t1y = (Max.y - orig.y) / dir.y;
+
+		if (t0x > Min.x && t0x < Max.x) return sqrt(Sqr(t0x) + Sqr(t0x*dir.y +orig.y));
+		if (t1x > Min.x && t1x < Max.x) return sqrt(Sqr(t1x) + Sqr(t1x*dir.y +orig.y));
+		if (t0y > Min.y && t0y < Max.y) return sqrt(Sqr(t0y) + Sqr(t0y*dir.x +orig.x));
+		if (t1y > Min.y && t1y < Max.y) return sqrt(Sqr(t1y) + Sqr(t1y*dir.x +orig.x));
+		return -1.;
+	}
+	Vec2 Center() const {
+		return Min + (Max - Min)*0.5;
+	}
+	bool IsZero() const {
+		return Max == Min;
+	}
+	float MaxRadius() const {
+		return (Max - Center()).Len();
 	}
 };
 

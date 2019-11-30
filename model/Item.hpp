@@ -14,6 +14,8 @@ public:
     class Weapon;
     class Mine;
 
+	int type;
+
     static std::shared_ptr<Item> readFrom(InputStream& stream);
     virtual void writeTo(OutputStream& stream) const = 0;
     virtual std::string toString() const = 0;

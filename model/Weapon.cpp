@@ -1,18 +1,18 @@
 #include "Weapon.hpp"
 
 Weapon::Weapon() { }
-Weapon::Weapon(WeaponType typ, WeaponParams params, int magazine, bool wasShooting, double spread, std::shared_ptr<double> fireTimer, std::shared_ptr<double> lastAngle, std::shared_ptr<int> lastFireTick) : typ(typ), params(params), magazine(magazine), wasShooting(wasShooting), spread(spread), fireTimer(fireTimer), lastAngle(lastAngle), lastFireTick(lastFireTick) { }
+Weapon::Weapon(WeaponType typ, WeaponParams params, int magazine, bool wasShooting, double spread, std::shared_ptr<double> fireTimer, std::shared_ptr<double> lastAngle, std::shared_ptr<int> lastFireTick) : type(typ), params(params), magazine(magazine), wasShooting(wasShooting), spread(spread), fireTimer(fireTimer), lastAngle(lastAngle), lastFireTick(lastFireTick) { }
 Weapon Weapon::readFrom(InputStream& stream) {
     Weapon result;
     switch (stream.readInt()) {
     case 0:
-        result.typ = WeaponType::PISTOL;
+        result.type = WeaponType::PISTOL;
         break;
     case 1:
-        result.typ = WeaponType::ASSAULT_RIFLE;
+        result.type = WeaponType::ASSAULT_RIFLE;
         break;
     case 2:
-        result.typ = WeaponType::ROCKET_LAUNCHER;
+        result.type = WeaponType::ROCKET_LAUNCHER;
         break;
     default:
         throw std::runtime_error("Unexpected discriminant value");
@@ -42,7 +42,7 @@ Weapon Weapon::readFrom(InputStream& stream) {
     return result;
 }
 void Weapon::writeTo(OutputStream& stream) const {
-    stream.write((int)(typ));
+    stream.write((int)(type));
     params.writeTo(stream);
     stream.write(magazine);
     stream.write(wasShooting);

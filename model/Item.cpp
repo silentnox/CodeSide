@@ -1,7 +1,9 @@
 #include "Item.hpp"
 
 
-Item::HealthPack::HealthPack() { }
+Item::HealthPack::HealthPack() {
+	type = 0;
+}
 Item::HealthPack::HealthPack(int health) : health(health) { }
 Item::HealthPack Item::HealthPack::readFrom(InputStream& stream) {
     Item::HealthPack result;
@@ -18,7 +20,9 @@ std::string Item::HealthPack::toString() const {
         ")";
 }
 
-Item::Weapon::Weapon() { }
+Item::Weapon::Weapon() {
+	type = 1;
+}
 Item::Weapon::Weapon(WeaponType weaponType) : weaponType(weaponType) { }
 Item::Weapon Item::Weapon::readFrom(InputStream& stream) {
     Item::Weapon result;
@@ -47,7 +51,9 @@ std::string Item::Weapon::toString() const {
         ")";
 }
 
-Item::Mine::Mine() { }
+Item::Mine::Mine() {
+	type = 2;
+}
 Item::Mine Item::Mine::readFrom(InputStream& stream) {
     Item::Mine result;
     return result;

@@ -21,3 +21,8 @@ std::string LootBox::toString() const {
         item->toString() +
         ")";
 }
+
+bool LootBox::operator==( const LootBox & in ) const
+{
+	return this == &in;
+}
