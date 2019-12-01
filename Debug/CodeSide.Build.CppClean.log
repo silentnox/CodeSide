@@ -27,8 +27,9 @@ g:\code\codeside\debug\weapon.obj
 g:\code\codeside\debug\vec2float.obj
 g:\code\codeside\debug\vec2double.obj
 g:\code\codeside\debug\unitaction.obj
-g:\code\codeside\debug\codeside.ilk
-g:\code\codeside\debug\codeside.pdb
+g:\code\codeside\localrunner\codeside.exe
+g:\code\codeside\localrunner\codeside.ilk
+g:\code\codeside\localrunner\codeside.pdb
 g:\code\codeside\debug\codeside.tlog\cl.command.1.tlog
 g:\code\codeside\debug\codeside.tlog\cl.read.1.tlog
 g:\code\codeside\debug\codeside.tlog\cl.write.1.tlog

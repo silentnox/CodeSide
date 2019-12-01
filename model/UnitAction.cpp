@@ -25,13 +25,13 @@ void UnitAction::writeTo(OutputStream& stream) const {
     stream.write(plantMine);
 }
 std::string UnitAction::toString() const {
-    return std::string("UnitAction") + "(" +
-        std::to_string(velocity) +
-        (jump ? "true" : "false") + 
-        (jumpDown ? "true" : "false") + 
-        aim.toString() +
-        (shoot ? "true" : "false") + 
-        (swapWeapon ? "true" : "false") + 
-        (plantMine ? "true" : "false") + 
+    return std::string("UnitAction") + "(v:" +
+        std::to_string(velocity) + " j:" +
+        (jump ? "true" : "false") + " jd:" +
+        (jumpDown ? "true" : "false") + " a:" +
+        aim.toString() + " shoot:" +
+        (shoot ? "true" : "false") + " swap:" +
+        (swapWeapon ? "true" : "false") + " plant:" +
+        (plantMine ? "true" : "false") +
         ")";
 }

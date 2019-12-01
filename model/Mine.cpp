@@ -1,7 +1,7 @@
 #include "Mine.hpp"
 
 Mine::Mine() { }
-Mine::Mine(int playerId, Vec2Double position, Vec2Double size, MineState state, std::shared_ptr<double> timer, double triggerRadius, ExplosionParams explosionParams) : playerId(playerId), position(position), size(size), state(state), timer(timer), triggerRadius(triggerRadius), explosionParams(explosionParams) { }
+Mine::Mine(int playerId, Vec2Double position, Vec2Double size, MineState state, std::shared_ptr<double> timer, double triggerRadius, ExplosionParams explosionParams) : playerId(playerId), position(position), size(size), state(state), timer(*timer), triggerRadius(triggerRadius), explosionParams(explosionParams) { }
 Mine Mine::readFrom(InputStream& stream) {
     Mine result;
     result.playerId = stream.readInt();
@@ -24,10 +24,9 @@ Mine Mine::readFrom(InputStream& stream) {
         throw std::runtime_error("Unexpected discriminant value");
     }
     if (stream.readBool()) {
-        result.timer = std::shared_ptr<double>(new double());
-        *result.timer = stream.readDouble();
+        result.timer = stream.readDouble();
     } else {
-        result.timer = std::shared_ptr<double>();
+        result.timer = 0;
     }
     result.triggerRadius = stream.readDouble();
     result.explosionParams = ExplosionParams::readFrom(stream);
@@ -42,7 +41,7 @@ void Mine::writeTo(OutputStream& stream) const {
         stream.write(false);
     } else {
         stream.write(true);
-        stream.write((*timer));
+        stream.write((timer));
     }
     stream.write(triggerRadius);
     explosionParams.writeTo(stream);

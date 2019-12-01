@@ -23,7 +23,7 @@ Level level;
 int selfPlayer;
 
 Tile Tiles[40][30];
-std::vector<ipair> TilesByType[5];
+std::vector<Rect> TilesByType[5];
 
 Rect GetUnitRect( const Unit & u ) {
 	return Rect( Vec2( u.position.x - u.size.x * 0.5, u.position.y ), Vec2( u.position.x + u.size.x * 0.5, u.position.y + u.size.y ) );
@@ -44,9 +44,9 @@ Rect GetUnitRect( const Unit & u ) {
 //}
 
 bool IsOnTile( const Rect & rect, Tile tile ) {
-	for (ipair v : TilesByType[tile]) {
-		Vec2 c( v.first, v.second );
-		Rect r( c, c + Vec2( 1, 1 ) );
+	for (Rect r : TilesByType[tile]) {
+		//Vec2 c( v.first, v.second );
+		//Rect r( c, c + Vec2( 1, 1 ) );
 		if (rect.Intersects( r )) return true;
 	}
 	if (tile == WALL) {
@@ -78,47 +78,70 @@ void InitStrat( const Game &game, const Unit & self ) {
 
 	selfPlayer = self.playerId;
 
+	TilesByType[0].reserve( 100 );
+	TilesByType[1].reserve( 100 );
+	TilesByType[2].reserve( 100 );
+	TilesByType[3].reserve( 100 );
+	TilesByType[4].reserve( 100 );
+
 	for (int i = 0; i < 40; i++) {
 		for (int j = 0; j < 30; j++) {
 			Tile tile = level.tiles[i][j];
 			Tiles[i][j] = tile;
 			if (tile != WALL || (i != 0 && j != 0 && i != 39 && j != 29 ) ) {
-				TilesByType[tile].emplace_back( ipair( i, j ) );
+				//TilesByType[tile].emplace_back( ipair( i, j ) );
+				TilesByType[tile].emplace_back( Rect( i,j,i+1.,j+1. ) );
 			}
 		}
 	}
 }
 
 pair<bool,Vec2> TraceRect( Rect r, Vec2 dir, Rect target = Rect( 0, 0, 0, 0 ) ) {
+	dir = dir.Normalized();
 	while (!IsOnTile( r, WALL )) {
-		if(r.Intersects( target )) return pair<bool, Vec2>( true, r.Center() );
-		if( !Rect(0,0,40,30).Contains(r.Center()) ) return pair<bool, Vec2>( true, r.Center() );
+		if(!target.IsZero() && r.Intersects( target )) return pair<bool, Vec2>( true, r.Center() );
+		if( !Rect(0,0,40,30).Contains(r.Center()) ) return pair<bool, Vec2>( false, r.Center() );
 		r += dir * 0.1;
 	}
 	return pair<bool, Vec2>(false,r.Center());
 }
 
-float HitChance( Rect target, Vec2 from, Vec2 dir, float radius, float spread, float explRange ) {
+float HitChance( Rect target, Vec2 from, Vec2 dir, const Weapon & weapon ) {
+	double spread = weapon.spread;
+
 	Vec2 l = dir.Rotate( spread ).Normalized();
 	Vec2 r = dir.Rotate( -spread ).Normalized();
-	for (int i = 0; i < 20; i++) {
+	int num = 20;
+
+	int hits = 0;
+
+	for (int i = 0; i < num; i++) {
 		Vec2 d = l.Slerped( i / 20., r );
-		TraceRect( Rect( from, radius ), d, target );
+		pair<bool, Vec2> res = TraceRect( Rect( from, weapon.params.bullet.size ), d, target );
+		if (res.first) {
+			hits++;
+			continue;
+		}
+		else {
+			if (weapon.params.explosion) {
+				Rect expl( res.second, weapon.params.explosion->radius );
+				if (expl.Intersects( target )) hits++;
+			}
+		}
 	}
-	return 0;
+	return hits/(float)num;
 }
 
 class Sim {
 public:
 
-	int currentTick;
-	//std::vector<Player> players;
+	int currentTick = 0;
 	std::vector<::Unit> units;
 	std::vector<::Bullet> bullets;
 	std::vector<::Mine> mines;
 	std::vector<::LootBox> lootBoxes;
 
-	int microticks = 1;
+	int microticks = 100;
 
 	Sim() {
 	}
@@ -141,10 +164,29 @@ public:
 
 		float delta = 1.0 / (props.ticksPerSecond * microticks);
 
-		WeaponParams params = props.weaponParams[u.weapon->type];
-		u.weapon->spread -= params.aimSpeed * delta;
+		if (u.weapon->fireTimer > 0) {
+			u.weapon->fireTimer -= delta;
+		}
+		else {
+			if (!u.weapon->magazine) {
+				u.weapon->magazine = u.weapon->params.magazineSize;
+			}
+			if (u.action.shoot) {
+				u.weapon->magazine -= 1;
+				u.weapon->fireTimer = u.weapon->magazine > 0 ? u.weapon->params.fireRate : u.weapon->params.reloadTime;
+				u.weapon->spread += u.weapon->params.recoil;
+			}
+		}
 
-		u.weapon->spread = stdh::minmax( u.weapon->spread, params.minSpread, params.maxSpread );
+		u.weapon->spread += u.weapon->lastAngle;
+		u.weapon->lastAngle = 0;
+
+		u.weapon->lastAngle = abs( u.prevAim.Angle( u.action.aim ) );
+		u.prevAim = u.action.aim;
+
+		u.weapon->spread -= u.weapon->params.aimSpeed * delta;
+
+		u.weapon->spread = stdh::minmax( u.weapon->spread, u.weapon->params.minSpread, u.weapon->params.maxSpread );
 	}
 
 	void PickLoot( Unit & u ) {
@@ -164,6 +206,7 @@ public:
 					break;
 				case 2:
 					u.mines += 1;
+					stdh::erase( lootBoxes, lb, stdh::pointer_equal<LootBox> );
 					break;
 				}
 			}
@@ -172,10 +215,6 @@ public:
 
 	bool MoveUnit( Unit & u ) {
 		UnitAction a = u.action;
-
-		if (currentTick == 80) {
-			int _bp = 0;
-		}
 
 		float delta = 1.0 / (props.ticksPerSecond * microticks);
 		float moveDelta = props.unitMaxHorizontalSpeed * delta;
@@ -190,8 +229,6 @@ public:
 		bool onLadder = GetTileAt( u.position + Vec2( 0, -moveDelta ) ) == LADDER || GetTileAt( u.position + Vec2( 0, u.size.y ) ) == LADDER;
 		bool underPlatform = (GetTileAt( u.position + Vec2( -u.size.x * 0.5, 0 ) ) == PLATFORM || GetTileAt( u.position + Vec2( u.size.x * 0.5, 0 ) ) == PLATFORM);
 		bool onPlatform = (feetTile1 == PLATFORM || feetTile2 == PLATFORM) && !onWall && !onLadder && !underPlatform;
-		//bool inAir = (feetTile1 == EMPTY && feetTile2 == EMPTY);
-		//bool inAir = ((feetTile1 == EMPTY || feetTile1 == LADDER ) && (feetTile2 == EMPTY || feetTile2 == LADDER));
 		bool inAir = !onWall && !onPlatform && !onLadder;
 		bool isBumped = GetTileAt( u.position + Vec2( -u.size.x * 0.5, u.size.y + moveDelta ) ) == WALL || GetTileAt( u.position + Vec2( u.size.x * 0.5, u.size.y + moveDelta ) ) == WALL;
 		bool touchJumppad = IsOnTile( r, JUMP_PAD );
@@ -199,21 +236,11 @@ public:
 		u.onLadder = onLadder;
 		u.onGround = !inAir;
 
-		//bool touchLadder = IsOnTile( r, LADDER );
-
-		//if (onPlatform) {
-		//	onPlatform = false;
-		//	inAir = true;
-		//}
-
 		bool special = false;
 
-		//Vec2 offset;
 		float ox = a.velocity * delta;
 		float oy = 0;
 
-		//u.jumpState.canJump = (!inAir || onLadder) /*&& !u.jumpTicks*/;
-		//u.jumpState.canJump = (!inAir && !u.jumpTicks) || onLadder;
 		u.jumpState.canJump = !inAir;
 
 		bool cancelJump = false;
@@ -224,7 +251,6 @@ public:
 			u.jumpState.maxTime = props.jumpPadJumpTime;
 			u.jumpTicks = u.jumpState.maxTime * (60 * microticks);
 			special = true;
-			//u.jumpState.canJump = false;
 		}
 		else {
 			if (a.jump) {
@@ -261,7 +287,6 @@ public:
 			u.jumpState.speed = -props.unitFallSpeed;
 			u.jumpState.maxTime = 0;
 			u.jumpState.canCancel = true;
-			//u.jumpTicks = 0;
 		}
 
 		if (u.jumpTicks) {
@@ -272,26 +297,29 @@ public:
 			if (inAir && !onLadder ) {
 				oy = -props.unitFallSpeed;
 			}
-			//u.jumpTime = 0;
 			u.jumpTicks = 0;
 		}
 
 		oy *= delta;
 
-		Rect test = r;
-		r += Vec2( 0, oy );
+		if (oy != 0) {
+			Rect test = r;
+			test += Vec2( 0, oy );
 
-		if (IsOnTile( r, WALL ) || !UnitsInRect( r, u.id).empty() ) {
-			oy = 0;
-			special = true;
+			if (IsOnTile( test, WALL ) || !UnitsInRect( test, u.id ).empty()) {
+				oy = 0;
+				special = true;
+			}
 		}
 
-		test = r;
-		r += Vec2( ox, 0 );
+		if (ox != 0) {
+			Rect test = r;
+			test += Vec2( ox, 0 );
 
-		if (IsOnTile( r, WALL ) || !UnitsInRect( r, u.id ).empty() ) {
-			ox = 0;
-			special = true;
+			if (IsOnTile( test, WALL ) || !UnitsInRect( test, u.id ).empty()) {
+				ox = 0;
+				special = true;
+			}
 		}
 
 		u.position.x += ox;
@@ -302,31 +330,66 @@ public:
 
 	void MoveBullet( Bullet & b ) {
 		float delta = 1.0 / (props.ticksPerSecond * microticks);
-		b.position += b.velocity * delta;
 
-		Rect r( b.position - Vec2( b.size*0.5, b.size*0.5 ), b.position + Vec2( b.size*0.5, b.size*0.5 ) );
+		Rect r( b.position, b.size );
+
+		Vec2 pos = b.position;
+		b.position += b.velocity * delta;
 
 		vint hit = UnitsInRect( r, b.unitId );
 
 		if (IsOnTile( r, WALL ) || !hit.empty() ) {
+			if (!hit.empty()) {
+				Unit & u = units[hit[0]];
+				u.health -= b.damage;
+			}
 			if (b.explosionParams) {
-				hit = UnitsInRect( Rect( b.position, b.explosionParams->radius ) );
+				hit = UnitsInRect( Rect( pos, b.explosionParams->radius ) );
 				for (int i : hit) {
 					Unit & u = units[i];
 					u.health -= b.explosionParams->damage;
 				}
 			}
-			else {
-				if (!hit.empty()) {
-					Unit & u = units[hit[0]];
-					u.health -= b.damage;
-				}
-			}
+
 			stdh::erase( bullets, b );
+			return;
 		}
 	}
 
 	void UpdateMine( Mine & m ) {
+		float delta = 1.0 / (props.ticksPerSecond * microticks);
+
+		if (m.state == EXPLODED) return;
+
+		if (m.state == PREPARING) {
+			m.timer -= delta;
+			if (m.timer < 0) {
+				m.state = MineState::IDLE;
+			}
+		}
+
+		if (m.state == TRIGGERED) {
+			m.timer -= delta;
+			if (m.timer < 0) {
+				vint ids = UnitsInRect( Rect( m.position, m.explosionParams.radius ) );
+				if (!ids.empty()) {
+					for (int i : ids) {
+						units[i].health -= m.explosionParams.damage;
+					}
+				}
+				m.state = EXPLODED;
+			}
+			return;
+		}
+
+		if (m.state == MineState::IDLE) {
+			vint ids = UnitsInRect( Rect( m.position, m.triggerRadius ) );
+			if (!ids.empty()) {
+				m.state = TRIGGERED;
+				m.timer = props.mineTriggerTime;
+			}
+		}
+
 
 	}
 
@@ -351,6 +414,9 @@ public:
 		for (Bullet & b : bullets) {
 			MoveBullet( b );
 		}
+		for (Mine & m : mines) {
+			UpdateMine( m );
+		}
 	}
 
 	void Tick() {
@@ -367,6 +433,40 @@ public:
 	}
 
 };
+
+vector<Vec2> PredictPath( const Unit & u, int ticks ) {
+	Sim sim;
+	sim.microticks = 1;
+	vector<Vec2> path;
+	path.reserve( ticks );
+	sim.units.emplace_back( u );
+	for (int i = 0; i < ticks; i++) {
+		sim.Tick();
+		path.emplace_back( sim.units[0].position );
+	}
+	return path;
+}
+
+vector<Vec2> PredictBullet( const Bullet & b, int ticks ) {
+	Sim sim;
+	sim.microticks = 1;
+	vector<Vec2> path;
+	path.reserve( ticks );
+	sim.bullets.emplace_back(b);
+	for (int i = 0; i < ticks; i++) {
+		sim.Tick();
+		path.emplace_back( sim.bullets[0].position );
+	}
+	return path;
+}
+
+void DrawPath( const vector<Vec2> & path, Debug & debug ) {
+	Vec2 prev = path[0];
+	for (Vec2 p : path) {
+		debug.draw( CustomData::Line( p, prev, 0.1, ColorFloat(1,1,1,1) ) );
+		prev = p;
+	}
+}
 
 int GetScore( const Unit & u, const Sim & s ) {
 	return u.health;
@@ -416,13 +516,30 @@ pair<bool,UnitAction> Dodge( const Unit &unit, const Game &game, Debug &debug ) 
 		actions.emplace_back( sim2.units[0].health, a );
 	}
 
-	std::sort( actions.begin(), actions.end(), []( const scoreAction & a, const scoreAction & b ) { return a.first < b.first; } );
+	UnitAction best;
+
+	std::stable_sort( actions.begin(), actions.end(), []( const scoreAction & a, const scoreAction & b ) { return a.first < b.first; } );
+	//best = stdh::best( actions, []( const scoreAction & a, const scoreAction & b ) { return a.first < b.first; } ).second;
+
+	bool dodge = unit.health > actions.front().first;
+
+	//debug.draw( CustomData::Line(unit.position, unit.position + actions.back().second.aim * 3, 0.1, ColorFloat( 1, 0, 0, 1 ) ) );
+	//debug.draw( CustomData::Log( std::to_string( unit.health > actions.front().first) + " " + std::to_string( actions.back().second.jump ? 1 : (actions.back().second.jumpDown ? -1 : 0) ) + " " + std::to_string( actions.back().second.velocity ) ) );
+	debug.draw( CustomData::Log( std::to_string(dodge) + " " + actions.back().second.toString() ) );
+	debug.draw( CustomData::Log( unit.jumpState.toString() ) );
+	
+
+	if (dodge) {
+		Unit u = unit;
+		u.action = actions.back().second;
+		DrawPath( PredictPath( u, 100 ), debug );
+	}
 
 	if (!game.bullets.empty()) {
 		int bp = 0;
 	}
 
-	return pair<bool, UnitAction>( unit.health > actions.front().first, actions.back().second );
+	return pair<bool, UnitAction>( dodge, actions.back().second );
 }
 
 UnitAction Quickstart( const Unit &unit, const Game &game, Debug &debug ) {
@@ -502,8 +619,25 @@ UnitAction Quickstart( const Unit &unit, const Game &game, Debug &debug ) {
 	action.swapWeapon = false;
 	action.plantMine = false;
 
-	if (unit.weapon && unit.weapon->type == ROCKET_LAUNCHER && enemyDist > unit.weapon->params.explosion->radius*2 && TraceRect( Rect( unit.position + Vec2(0,unit.size.y*0.5), unit.weapon->params.bullet.size ), aim ).second.Dist(unit.position) < unit.weapon->params.explosion->radius+0.5  ) {
-		action.shoot = false;
+	//action.aim = Vec2( 1, 0 );
+
+	float tracedist = -1;
+	if (unit.weapon && unit.weapon->type == ROCKET_LAUNCHER ) {
+		Rect br = Rect( unit.position + Vec2( 0, unit.size.y*0.5 ), unit.weapon->params.bullet.size );
+		tracedist = TraceRect( br, aim ).second.Dist( unit.position );
+		float tracedistL = TraceRect( br, aim.Rotate(unit.weapon->spread*0.7)) .second.Dist( unit.position );
+		float tracedistR = TraceRect( br, aim.Rotate( -unit.weapon->spread*0.7 ) ).second.Dist( unit.position );
+		float mindist = unit.weapon->params.explosion->radius;
+		if (enemyDist > unit.weapon->params.explosion->radius*2 && (tracedist < mindist || tracedistL < mindist || tracedistR < mindist) ) {
+			action.shoot = false;
+		}
+		if (enemyDist > 6 && unit.weapon->spread > 0.35) {
+			action.shoot = false;
+		}
+	}
+
+	if (tracedist > 15) {
+		int bp = 0;
 	}
 
 	if (sqrt(weaponDist) < 1.5 && betterWeapon) {
@@ -518,19 +652,26 @@ UnitAction Quickstart( const Unit &unit, const Game &game, Debug &debug ) {
 		action.velocity = dodge.second.velocity;
 	}
 
-	debug.draw( CustomData::Log( std::string( "Target pos: " ) + targetPos.toString() ) );
+	if (enemyDist < 1.5 && unit.health > nearestEnemy->health) {
+		action.plantMine = true;
+	}
+
+	//debug.draw( CustomData::Log( std::string( "Target pos: " ) + targetPos.toString() ) );
 	debug.draw( CustomData::Log( std::string( "enemydist: " ) + std::to_string( sqrt(enemyDist) ) ) );
-	debug.draw( CustomData::Log( std::string( "enemy: " ) + std::to_string( enemy ) ) );
+	//debug.draw( CustomData::Log( std::string( "enemy: " ) + std::to_string( enemy ) ) );
 	debug.draw( CustomData::Log( std::string( "dodge: " ) + std::to_string( dodge.first ) ) );
+	if(unit.weapon) debug.draw( CustomData::Log( std::string( "lastangle: " ) + std::to_string( ToDegree( unit.weapon->lastAngle ) ) + " " + std::to_string( unit.weapon->spread ) ) );
+	if(unit.weapon) debug.draw( CustomData::Log( std::string( "firetimer: " ) + std::to_string( unit.weapon->fireTimer ) ) );
+	if(unit.weapon) debug.draw( CustomData::Log( std::string( "tracedist: " ) + std::to_string( tracedist ) ) );
 
 	return action;
 }
 
 UnitAction GetTestCommand( const Unit &unit, int tick ) {
 	UnitAction a;
-	a.velocity = 0;
+	a.velocity = 10;
 	a.jump = false;
-	a.jumpDown = tick==0?true:false;
+	a.jumpDown = true;
 	a.plantMine = false;
 	a.swapWeapon = false;
 	a.shoot = false;
@@ -571,5 +712,7 @@ UnitAction DebugAction( const Unit &unit, const Game &game, Debug &debug ) {
 UnitAction MyStrategy::getAction(const Unit &unit, const Game &game, Debug &debug) {
 	InitStrat( game, unit );
 	//return DebugAction( unit, game, debug );
-	return Quickstart( unit, game,debug );
+	pair<bool, UnitAction> d = Dodge( unit, game, debug );
+	return d.first ? d.second : UnitAction();
+	//return Quickstart( unit, game,debug );
 }

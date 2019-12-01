@@ -19,7 +19,7 @@ public:
     Vec2Double position;
     Vec2Double size;
     MineState state;
-    std::shared_ptr<double> timer;
+	double timer;
     double triggerRadius;
     ExplosionParams explosionParams;
     Mine();

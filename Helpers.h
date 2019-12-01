@@ -207,9 +207,21 @@ namespace stdh {
 		return &a == &b;
 	}
 
+	template <typename T, typename Predicate>
+	auto best( const T & in, Predicate pred ) {
+		auto b = *in.begin();
+		for (const auto & it : in) {
+			if (pred( it, b )) {
+				b = it;
+			}
+		}
+		return b;
+	}
+
 }
 
 typedef std::pair<int, int> ipair;
+typedef std::pair<bool, float> bfpair;
 typedef std::vector<int> vint;
 
 
@@ -734,17 +746,17 @@ public:
 	bool Intersects( const Rect rect ) const {
 		return (Min.x < rect.Max.x && rect.Min.x < Max.x && Min.y < rect.Max.y && rect.Min.y < Max.y);
 	}
-	float Raycast( Vec2 orig, Vec2 dir ) const {
+	bfpair Raycast( Vec2 orig, Vec2 dir ) const {
 		float t0x = (Min.x - orig.x) / dir.x;
 		float t1x = (Max.x - orig.x) / dir.x;
 		float t0y = (Min.y - orig.y) / dir.y;
 		float t1y = (Max.y - orig.y) / dir.y;
 
-		if (t0x > Min.x && t0x < Max.x) return sqrt(Sqr(t0x) + Sqr(t0x*dir.y +orig.y));
-		if (t1x > Min.x && t1x < Max.x) return sqrt(Sqr(t1x) + Sqr(t1x*dir.y +orig.y));
-		if (t0y > Min.y && t0y < Max.y) return sqrt(Sqr(t0y) + Sqr(t0y*dir.x +orig.x));
-		if (t1y > Min.y && t1y < Max.y) return sqrt(Sqr(t1y) + Sqr(t1y*dir.x +orig.x));
-		return -1.;
+		if (t0x > Min.x && t0x < Max.x) return bfpair(true,sqrt(Sqr(t0x) + Sqr(t0x*dir.y +orig.y)));
+		if (t1x > Min.x && t1x < Max.x) return bfpair( true, sqrt(Sqr(t1x) + Sqr(t1x*dir.y +orig.y)));
+		if (t0y > Min.y && t0y < Max.y) return bfpair( true, sqrt(Sqr(t0y) + Sqr(t0y*dir.x +orig.x)));
+		if (t1y > Min.y && t1y < Max.y) return bfpair( true, sqrt(Sqr(t1y) + Sqr(t1y*dir.x +orig.x)));
+		return bfpair( false, 0 );
 	}
 	Vec2 Center() const {
 		return Min + (Max - Min)*0.5;
@@ -800,7 +812,7 @@ public:
 	Graph( int V ) {
 		adj.resize( V );
 	}
-	inline void AddEdge( int u, int v, bool twoWay = false, int w = 1 ) {
+	inline void AddEdge( int u, int v, int w = 1, bool twoWay = false ) {
 		adj[u].emplace( v, w  );
 		if(twoWay) adj[v].emplace( u, w );
 	}
@@ -904,6 +916,44 @@ public:
 				if (costs[v] < 0) continue;
 
 				int d = dist[u] + costs[v];
+				if (dist[v] > d) {
+					dist[v] = d;
+					preds[v] = u;
+					pq.emplace( d, v );
+				}
+			}
+
+		}
+
+	}
+
+	// dijkstra algorithm on a 2d weight matrix with agent
+	template<int NUM_CELLS, int WIDTH, typename Agent>
+	static void WaveFill( int index, std::vector<int> & preds, std::vector<int> & dist, Agent basic ) {
+		dist.resize( NUM_CELLS, INT_MAX );
+		preds.resize( NUM_CELLS, -1 );
+
+		Agent agents[ NUM_CELLS ];
+
+		std::priority_queue< ipair, std::vector <ipair>, std::greater<ipair> > pq;
+
+		pq.emplace( 0, index );
+		dist[index] = 0;
+		preds[index] = -1;
+		agents[index] = basic;
+
+		while (!pq.empty()) {
+			int u = pq.top().second;
+			pq.pop();
+
+			const int nb[] = { u - 1,u + 1,u - WIDTH,u + WIDTH };
+
+			for (int v : nb) {
+				if (v < 0 || v > NUM_CELLS - 1) continue;
+				if (v % WIDTH == WIDTH - 1 && u % WIDTH == 0) continue;
+				if (u % WIDTH == WIDTH - 1 && v % WIDTH == 0) continue;
+
+				int d = dist[u] + agents[v](agents[u],v%WIDTH,v/WIDTH);
 				if (dist[v] > d) {
 					dist[v] = d;
 					preds[v] = u;

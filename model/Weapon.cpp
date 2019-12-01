@@ -1,7 +1,7 @@
 #include "Weapon.hpp"
 
 Weapon::Weapon() { }
-Weapon::Weapon(WeaponType typ, WeaponParams params, int magazine, bool wasShooting, double spread, std::shared_ptr<double> fireTimer, std::shared_ptr<double> lastAngle, std::shared_ptr<int> lastFireTick) : type(typ), params(params), magazine(magazine), wasShooting(wasShooting), spread(spread), fireTimer(fireTimer), lastAngle(lastAngle), lastFireTick(lastFireTick) { }
+Weapon::Weapon(WeaponType typ, WeaponParams params, int magazine, bool wasShooting, double spread, std::shared_ptr<double> fireTimer, std::shared_ptr<double> lastAngle, std::shared_ptr<int> lastFireTick) : type(typ), params(params), magazine(magazine), wasShooting(wasShooting), spread(spread), fireTimer(*fireTimer), lastAngle(*lastAngle), lastFireTick(*lastFireTick) { }
 Weapon Weapon::readFrom(InputStream& stream) {
     Weapon result;
     switch (stream.readInt()) {
@@ -22,22 +22,19 @@ Weapon Weapon::readFrom(InputStream& stream) {
     result.wasShooting = stream.readBool();
     result.spread = stream.readDouble();
     if (stream.readBool()) {
-        result.fireTimer = std::shared_ptr<double>(new double());
-        *result.fireTimer = stream.readDouble();
+        result.fireTimer = stream.readDouble();
     } else {
-        result.fireTimer = std::shared_ptr<double>();
+        result.fireTimer = 0;
     }
     if (stream.readBool()) {
-        result.lastAngle = std::shared_ptr<double>(new double());
-        *result.lastAngle = stream.readDouble();
+        result.lastAngle = stream.readDouble();
     } else {
-        result.lastAngle = std::shared_ptr<double>();
+        result.lastAngle = 0;
     }
     if (stream.readBool()) {
-        result.lastFireTick = std::shared_ptr<int>(new int());
-        *result.lastFireTick = stream.readInt();
+        result.lastFireTick = stream.readInt();
     } else {
-        result.lastFireTick = std::shared_ptr<int>();
+        result.lastFireTick = 0;
     }
     return result;
 }
@@ -51,19 +48,19 @@ void Weapon::writeTo(OutputStream& stream) const {
         stream.write(false);
     } else {
         stream.write(true);
-        stream.write((*fireTimer));
+        stream.write((fireTimer));
     }
     if (lastAngle) {
         stream.write(false);
     } else {
         stream.write(true);
-        stream.write((*lastAngle));
+        stream.write((lastAngle));
     }
     if (lastFireTick) {
         stream.write(false);
     } else {
         stream.write(true);
-        stream.write((*lastFireTick));
+        stream.write((lastFireTick));
     }
 }
 std::string Weapon::toString() const {

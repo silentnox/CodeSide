@@ -1,4 +1,7 @@
 ﻿  MyStrategy.cpp
-g:\code\codeside\mystrategy.cpp(231): warning C4189: '_bp': local variable is initialized but not referenced
-g:\code\codeside\mystrategy.cpp(522): warning C4305: 'argument': truncation from 'double' to 'float'
+g:\code\codeside\mystrategy.cpp(492): warning C4189: 'bp': local variable is initialized but not referenced
+g:\code\codeside\mystrategy.cpp(567): warning C4305: 'argument': truncation from 'double' to 'float'
+g:\code\codeside\mystrategy.cpp(550): warning C4189: 'tile': local variable is initialized but not referenced
+g:\code\codeside\mystrategy.cpp(593): warning C4189: 'bp': local variable is initialized but not referenced
+g:\code\codeside\mystrategy.cpp(644): warning C4305: 'argument': truncation from 'double' to 'float'
   CodeSide.vcxproj -> g:\Code\CodeSide\localrunner\CodeSide.exe
