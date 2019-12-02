@@ -44,7 +44,7 @@ inline double Sqr( double d ) {
 	return d * d;
 }
 
-inline double Sign( double d, float eps = 0. ) {
+inline double Sign( double d, double eps = 0. ) {
 	return (d > 0) ? ((d > eps)?1:0) : ((d<-eps)?-1:0);
 }
 
@@ -86,13 +86,13 @@ inline bool IsEpsilon( double d ) {
 	return abs( d ) <= FLT_EPSILON; 
 }
 
-inline double ToDegree( double rad ) {
+inline double Deg( double rad ) {
 	return rad / (2 * M_PI) * 360;
 }
 
 struct Degree {
 	double degree;
-	Degree( double rad ) : degree( ToDegree( rad ) ) {};
+	Degree( double rad ) : degree( Deg( rad ) ) {};
 	operator double() const {
 		return degree;
 	}
@@ -209,19 +209,33 @@ namespace stdh {
 
 	template <typename T, typename Predicate>
 	auto best( const T & in, Predicate pred ) {
-		auto b = *in.begin();
-		for (const auto & it : in) {
-			if (pred( it, b )) {
+		auto b = in.begin();
+		for (auto it = in.begin(); it != in.end(); ++it) {
+			if (pred( *it, *b )) {
 				b = it;
 			}
 		}
-		return b;
+		return *b;
+	}
+
+	template <int Num, typename T, typename T2>
+	void combination( T2 list, std::vector<std::array<T,Num>> & out ) {
+		if (Num < 1) {
+			out.resize( out.size() + 1 );
+			return;
+		}
+
+		for (auto item : list) {
+			out.back()[Num] = item;
+			combination<Num - 1>( list, out );
+		}
 	}
 
 }
 
 typedef std::pair<int, int> ipair;
-typedef std::pair<bool, float> bfpair;
+typedef std::pair<bool, double> bfpair;
+typedef std::pair<bool, bool> bpair;
 typedef std::vector<int> vint;
 
 
@@ -260,13 +274,13 @@ public:
 		return std::chrono::duration_cast<Microsec>(Hrc::now() - Start).count();
 	}
 	inline long long GetTotalMsec() const {
-		return TotalMicro / 1000;
+		return TotalMicro / 1000.;
 	}
 	inline long long GetTotalMicrosecs() const {
 		return TotalMicro;
 	}
-	inline float GetTotalSeconds() const {
-		return GetTotalMsec() / 1000.0f;
+	inline double GetTotalSeconds() const {
+		return GetTotalMsec() / 1000.;
 	}
 };
 
@@ -292,8 +306,8 @@ public:
 	inline long GetTotalMsec() const {
 		return (long)(Total / (CLOCKS_PER_SEC * 1000));
 	}
-	inline float GetTotalSeconds() const {
-		return (float)Total / CLOCKS_PER_SEC;
+	inline double GetTotalSeconds() const {
+		return (double)Total / CLOCKS_PER_SEC;
 	}
 };
 
@@ -567,7 +581,7 @@ public:
 		return Vec2( x, y ) * (in / lvLen);
 	}
 	inline Vec2 Rotate( double rad ) const {
-		return Vec2( cos( rad*x ) - sin( rad*y ), sin( rad*x ) + cos( rad*y ) );
+		return Vec2( x*cos( rad ) - y * sin( rad ), x*sin( rad ) + y * cos( rad ) );
 	}
 	inline Vec2 Lerped( double t, Vec2 to ) const {
 		return (*this)*(1 - t) + to * t;
@@ -609,7 +623,7 @@ public:
 	//static const Vec2 UnitX;
 	//static const Vec2 UnitY;
 };
-
+typedef std::pair<bool, Vec2> bv2pair;
 
 class Plane {
 public:
@@ -730,14 +744,18 @@ public:
 	Rect( const Vec2 min, Vec2 max ) : Min(min), Max(max) {
 	}
 
-	Rect( float a, float b, float c, float d ) : Min( a, b ), Max( c, d ) {};
+	Rect( double a, double b, double c, double d ) : Min( a, b ), Max( c, d ) {};
 
-	Rect( const Vec2 center, float size ) : Min( center.x - size * 0.5, center.y - size * 0.5 ), Max( center.x + size * 0.5, center.y + size * 0.5 ) {};
+	Rect( const Vec2 center, double halfSize ) : Min( center.x - halfSize, center.y - halfSize ), Max( center.x + halfSize, center.y + halfSize ) {};
 
 	Rect & operator+=( const Vec2 offset ) {
 		Min += offset;
 		Max += offset;
 		return *this;
+	}
+
+	Rect operator+( const Vec2 offset ) const {
+		return Rect( Min + offset, Max + offset );
 	}
 
 	bool Contains( const Vec2 point ) const {
@@ -746,17 +764,21 @@ public:
 	bool Intersects( const Rect rect ) const {
 		return (Min.x < rect.Max.x && rect.Min.x < Max.x && Min.y < rect.Max.y && rect.Min.y < Max.y);
 	}
-	bfpair Raycast( Vec2 orig, Vec2 dir ) const {
-		float t0x = (Min.x - orig.x) / dir.x;
-		float t1x = (Max.x - orig.x) / dir.x;
-		float t0y = (Min.y - orig.y) / dir.y;
-		float t1y = (Max.y - orig.y) / dir.y;
+	bv2pair Raycast( Vec2 orig, Vec2 dir ) const {
+		double t0x = (Min.x - orig.x) / dir.x;
+		double t1x = (Max.x - orig.x) / dir.x;
+		double t0y = (Min.y - orig.y) / dir.y;
+		double t1y = (Max.y - orig.y) / dir.y;
 
-		if (t0x > Min.x && t0x < Max.x) return bfpair(true,sqrt(Sqr(t0x) + Sqr(t0x*dir.y +orig.y)));
-		if (t1x > Min.x && t1x < Max.x) return bfpair( true, sqrt(Sqr(t1x) + Sqr(t1x*dir.y +orig.y)));
-		if (t0y > Min.y && t0y < Max.y) return bfpair( true, sqrt(Sqr(t0y) + Sqr(t0y*dir.x +orig.x)));
-		if (t1y > Min.y && t1y < Max.y) return bfpair( true, sqrt(Sqr(t1y) + Sqr(t1y*dir.x +orig.x)));
-		return bfpair( false, 0 );
+		if (t0x > t1x) std::swap( t0x, t1x );
+		if (t0y > t1y) std::swap( t0y, t1y );
+
+		if ((t0x < 0 && t0y < 0) || t0x > t1y || t0y > t1x) {
+			return bv2pair( false, Vec2() );
+		}
+		else {
+			return bv2pair( true, (orig + dir*std::max( t0x, t0y )) );
+		}
 	}
 	Vec2 Center() const {
 		return Min + (Max - Min)*0.5;
@@ -764,7 +786,7 @@ public:
 	bool IsZero() const {
 		return Max == Min;
 	}
-	float MaxRadius() const {
+	double MaxRadius() const {
 		return (Max - Center()).Len();
 	}
 };

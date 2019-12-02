@@ -169,5 +169,8 @@
     <ClInclude Include="Stream.hpp" />
     <ClInclude Include="TcpStream.hpp" />
     <ClInclude Include="Helpers.h" />
+    <ClInclude Include="model\TextAlignment.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -69,6 +69,7 @@
     <ClInclude Include="model\PlayerView.hpp" />
     <ClInclude Include="model\Properties.hpp" />
     <ClInclude Include="model\ServerMessageGame.hpp" />
+    <ClInclude Include="model\TextAlignment.hpp" />
     <ClInclude Include="model\Tile.hpp" />
     <ClInclude Include="model\Unit.hpp" />
     <ClInclude Include="model\UnitAction.hpp" />
