@@ -87,6 +87,7 @@
     <ClCompile Include="model\Versioned.cpp">
       <Filter>model</Filter>
     </ClCompile>
+    <ClCompile Include="trash.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="model\Bullet.hpp">

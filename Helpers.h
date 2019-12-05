@@ -547,6 +547,9 @@ public:
 	inline bool operator==( Vec2 InV ) const {
 		return (x == InV.x && y == InV.y);
 	}
+	inline bool operator!=( Vec2 InV ) const {
+		return (x != InV.x || y != InV.y);
+	}
 	inline Vec2 operator+=( Vec2 InV ) {
 		x += InV.x;
 		y += InV.y;
@@ -784,7 +787,7 @@ public:
 	inline bool Intersects( const Rect rect ) const {
 		return (Min.x < rect.Max.x && rect.Min.x < Max.x && Min.y < rect.Max.y && rect.Min.y < Max.y);
 	}
-	bv2pair Raycast( Vec2 orig, Vec2 dir ) const {
+	bfpair Raycast( Vec2 orig, Vec2 dir ) const {
 		double t0x = (Min.x - orig.x) / dir.x;
 		double t1x = (Max.x - orig.x) / dir.x;
 		double t0y = (Min.y - orig.y) / dir.y;
@@ -794,10 +797,10 @@ public:
 		if (t0y > t1y) std::swap( t0y, t1y );
 
 		if ((t0x < 0 && t0y < 0) || t0x > t1y || t0y > t1x) {
-			return bv2pair( false, Vec2() );
+			return bfpair( false, 0. );
 		}
 		else {
-			return bv2pair( true, (orig + dir*std::max( t0x, t0y )) );
+			return bfpair( true, std::max( t0x, t0y ) );
 		}
 	}
 	inline Vec2 Center() const {
@@ -850,6 +853,7 @@ public:
 	typedef std::set<ipair> node;
 
 	std::vector< node > adj;
+	std::vector< int > ids;
 
 	Graph( int V ) {
 		adj.resize( V );
