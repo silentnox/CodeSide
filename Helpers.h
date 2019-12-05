@@ -40,6 +40,11 @@
 
 #define BIT(x) (1 << (x))
 
+template <typename T>
+std::string str( const T & in ) {
+	return std::to_string( in );
+}
+
 inline double Sqr( double d ) {
 	return d * d;
 }
@@ -88,6 +93,10 @@ inline bool IsEpsilon( double d ) {
 
 inline double Deg( double rad ) {
 	return rad / (2 * M_PI) * 360;
+}
+
+inline double Rad( double deg ) {
+	return deg * (2 * M_PI) / 360;
 }
 
 struct Degree {
@@ -216,6 +225,17 @@ namespace stdh {
 			}
 		}
 		return *b;
+	}
+
+	template <typename T, typename Predicate>
+	const auto * best_ptr( const T & in, Predicate pred ) {
+		auto * b = null;
+		for (const auto & it = in.begin(); it != in.end(); ++it) {
+			if (pred( *it, *b )) {
+				b = &it;
+			}
+		}
+		return b;
 	}
 
 	template <int Num, typename T, typename T2>
@@ -737,31 +757,31 @@ class Rect {
 public:
 	Vec2 Min, Max;
 
-	Rect() {
+	inline Rect() {
 
 	}
 
-	Rect( const Vec2 min, Vec2 max ) : Min(min), Max(max) {
+	inline Rect( const Vec2 min, Vec2 max ) : Min(min), Max(max) {
 	}
 
-	Rect( double a, double b, double c, double d ) : Min( a, b ), Max( c, d ) {};
+	inline  Rect( double a, double b, double c, double d ) : Min( a, b ), Max( c, d ) {};
 
-	Rect( const Vec2 center, double halfSize ) : Min( center.x - halfSize, center.y - halfSize ), Max( center.x + halfSize, center.y + halfSize ) {};
+	inline Rect( const Vec2 center, double halfSize ) : Min( center.x - halfSize, center.y - halfSize ), Max( center.x + halfSize, center.y + halfSize ) {};
 
-	Rect & operator+=( const Vec2 offset ) {
+	inline Rect & operator+=( const Vec2 offset ) {
 		Min += offset;
 		Max += offset;
 		return *this;
 	}
 
-	Rect operator+( const Vec2 offset ) const {
+	inline Rect operator+( const Vec2 offset ) const {
 		return Rect( Min + offset, Max + offset );
 	}
 
-	bool Contains( const Vec2 point ) const {
+	inline bool Contains( const Vec2 point ) const {
 		return Min.x < point.x && Min.y < point.y && Max.x > point.x && Max.y > point.y;
 	}
-	bool Intersects( const Rect rect ) const {
+	inline bool Intersects( const Rect rect ) const {
 		return (Min.x < rect.Max.x && rect.Min.x < Max.x && Min.y < rect.Max.y && rect.Min.y < Max.y);
 	}
 	bv2pair Raycast( Vec2 orig, Vec2 dir ) const {
@@ -780,13 +800,13 @@ public:
 			return bv2pair( true, (orig + dir*std::max( t0x, t0y )) );
 		}
 	}
-	Vec2 Center() const {
+	inline Vec2 Center() const {
 		return Min + (Max - Min)*0.5;
 	}
-	bool IsZero() const {
+	inline  bool IsZero() const {
 		return Max == Min;
 	}
-	double MaxRadius() const {
+	inline double MaxRadius() const {
 		return (Max - Center()).Len();
 	}
 };

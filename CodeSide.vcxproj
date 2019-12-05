@@ -42,6 +42,7 @@
     <ClCompile Include="model\UnitAction.cpp" />
     <ClCompile Include="model\Vec2Double.cpp" />
     <ClCompile Include="model\Vec2Float.cpp" />
+    <ClCompile Include="model\Versioned.cpp" />
     <ClCompile Include="model\Weapon.cpp" />
     <ClCompile Include="model\WeaponParams.cpp" />
     <ClCompile Include="MyStrategy.cpp" />
@@ -75,6 +76,7 @@
     <ClInclude Include="model\UnitAction.hpp" />
     <ClInclude Include="model\Vec2Double.hpp" />
     <ClInclude Include="model\Vec2Float.hpp" />
+    <ClInclude Include="model\Versioned.hpp" />
     <ClInclude Include="model\Weapon.hpp" />
     <ClInclude Include="model\WeaponParams.hpp" />
     <ClInclude Include="model\WeaponType.hpp" />
@@ -160,8 +162,10 @@
     <ClCompile>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <Optimization>MaxSpeed</Optimization>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
@@ -175,12 +179,22 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
       <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
       <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <Optimization>MaxSpeed</Optimization>
+    </ClCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -10,6 +10,8 @@ public:
   Debug(const std::shared_ptr<OutputStream> &outputStream);
   void draw(const CustomData &customData);
 
+  void print( const std::string & message );
+
 private:
   std::shared_ptr<OutputStream> outputStream;
 };

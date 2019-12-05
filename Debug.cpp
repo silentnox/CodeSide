@@ -9,3 +9,8 @@ void Debug::draw(const CustomData &customData) {
   customData.writeTo(*outputStream);
   outputStream->flush();
 }
+
+void Debug::print( const std::string & message )
+{
+	draw( CustomData::Log( message ) );
+}

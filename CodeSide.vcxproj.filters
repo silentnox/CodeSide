@@ -84,6 +84,9 @@
     <ClCompile Include="MyStrategy.cpp" />
     <ClCompile Include="Stream.cpp" />
     <ClCompile Include="TcpStream.cpp" />
+    <ClCompile Include="model\Versioned.cpp">
+      <Filter>model</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="model\Bullet.hpp">
@@ -170,6 +173,9 @@
     <ClInclude Include="TcpStream.hpp" />
     <ClInclude Include="Helpers.h" />
     <ClInclude Include="model\TextAlignment.hpp">
+      <Filter>model</Filter>
+    </ClInclude>
+    <ClInclude Include="model\Versioned.hpp">
       <Filter>model</Filter>
     </ClInclude>
   </ItemGroup>
