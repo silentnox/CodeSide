@@ -572,7 +572,7 @@ public:
 		double det = x * InV.y - y * InV.x;
 		return atan2( det, dot );
 	}
-	// return perpendicular vector
+	// return perpendicular vector (counterclockwise rotation order)
 	inline Vec2 Perp() const {
 		return Vec2( -y, x );
 	}
@@ -603,6 +603,7 @@ public:
 		double lvLen = Len();
 		return Vec2( x, y ) * (in / lvLen);
 	}
+	// counterclockwise
 	inline Vec2 Rotate( double rad ) const {
 		return Vec2( x*cos( rad ) - y * sin( rad ), x*sin( rad ) + y * cos( rad ) );
 	}

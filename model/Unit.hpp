@@ -41,7 +41,11 @@ public:
     bool onLadder;
     int mines;
     std::shared_ptr<Weapon> weapon;
+	
 	UnitAction action;
+
+	int numHealed = 0;
+	int lastDamage = 0;
 
     Unit();
     Unit(int playerId, int id, int health, Vec2Double position, Vec2Double size, JumpState jumpState, bool walkedRight, bool stand, bool onGround, bool onLadder, int mines, std::shared_ptr<Weapon> weapon);
