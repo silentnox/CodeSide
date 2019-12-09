@@ -29,12 +29,12 @@ Weapon Weapon::readFrom(InputStream& stream) {
     if (stream.readBool()) {
         result.lastAngle = stream.readDouble();
     } else {
-        result.lastAngle = 0;
+        result.lastAngle = NAN;
     }
     if (stream.readBool()) {
         result.lastFireTick = stream.readInt();
     } else {
-        result.lastFireTick = 0;
+        result.lastFireTick = -1;
     }
     return result;
 }

@@ -1,0 +1,14 @@
+{
+  "players": [
+    {
+      "crashed": false
+    },
+    {
+      "crashed": false
+    }
+  ],
+  "results": [
+    1075,
+    80
+  ]
+}

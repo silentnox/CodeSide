@@ -1,7 +1,7 @@
 #include "Unit.hpp"
 
 Unit::Unit() { }
-Unit::Unit(int playerId, int id, int health, Vec2Double position, Vec2Double size, JumpState jumpState, bool walkedRight, bool stand, bool onGround, bool onLadder, int mines, std::shared_ptr<Weapon> weapon) : playerId(playerId), id(id), health(health), position(position), size(size), jumpState(jumpState), walkedRight(walkedRight), stand(stand), onGround(onGround), onLadder(onLadder), mines(mines), weapon(weapon) { }
+Unit::Unit(int playerId, int id, int health, Vec2Double position, Vec2Double size, JumpState jumpState, bool walkedRight, bool stand, bool onGround, bool onLadder, int mines, std::shared_ptr<Weapon> weapon) : playerId(playerId), id(id), health(health), position(position), size(size), jumpState(jumpState), walkedRight(walkedRight), stand(stand), onGround(onGround), onLadder(onLadder), mines(mines), weapon(*weapon) { }
 Unit Unit::readFrom(InputStream& stream) {
     Unit result;
     result.playerId = stream.readInt();
@@ -15,11 +15,11 @@ Unit Unit::readFrom(InputStream& stream) {
     result.onGround = stream.readBool();
     result.onLadder = stream.readBool();
     result.mines = stream.readInt();
-    if (stream.readBool()) {
-        result.weapon = std::shared_ptr<Weapon>(new Weapon());
-        *result.weapon = Weapon::readFrom(stream);
+	result.hasWeapon = stream.readBool();
+    if (result.hasWeapon) {
+        result.weapon = Weapon::readFrom(stream);
     } else {
-        result.weapon = std::shared_ptr<Weapon>();
+        //result.weapon = std::shared_ptr<Weapon>();
     }
     return result;
 }
@@ -35,11 +35,11 @@ void Unit::writeTo(OutputStream& stream) const {
     stream.write(onGround);
     stream.write(onLadder);
     stream.write(mines);
-    if (weapon) {
+    if (!hasWeapon) {
         stream.write(false);
     } else {
         stream.write(true);
-        (*weapon).writeTo(stream);
+        weapon.writeTo(stream);
     }
 }
 std::string Unit::toString() const {

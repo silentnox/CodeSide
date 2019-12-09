@@ -17,10 +17,10 @@ void JumpState::writeTo(OutputStream& stream) const {
     stream.write(canCancel);
 }
 std::string JumpState::toString() const {
-    return std::string("JumpState") + "(" +
-        (canJump ? "true" : "false") +  " cj:" +
-        std::to_string(speed) + " mt:" +
-        std::to_string(maxTime) + " cc:" + 
+    return std::string("JumpState") + "(canjump: " +
+        (canJump ? "true" : "false") +  " speed:" +
+        std::to_string(speed) + " maxtime:" +
+        std::to_string(maxTime) + " cancancel:" + 
         (canCancel ? "true" : "false") + 
         ")";
 }

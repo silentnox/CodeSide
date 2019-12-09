@@ -67,7 +67,7 @@
 //}
 std::shared_ptr<Item> Item::readFrom(InputStream& stream) {
 	std::shared_ptr<Item> item = std::shared_ptr<Item>( new Item() );
-	item->type = stream.readInt();
+	item->type = (Type)stream.readInt();
     switch (item->type) {
     case 0:
 		item->health = stream.readInt();

@@ -178,7 +178,9 @@ namespace stdh {
 
 	template <typename T>
 	T minmax( const T & in, const T & min, const T & max ) {
-		return std::min( min, std::max( in, max ) );
+		if (in < min) return min;
+		if (in > max) return max;
+		return in;
 	}
 
 	template <typename T, typename T2>
@@ -780,6 +782,10 @@ public:
 
 	inline Rect operator+( const Vec2 offset ) const {
 		return Rect( Min + offset, Max + offset );
+	}
+
+	inline Rect Expand( const Vec2 size ) const {
+		return Rect( Min - size, Max + size );
 	}
 
 	inline bool Contains( const Vec2 point ) const {

@@ -40,7 +40,8 @@ public:
     bool onGround;
     bool onLadder;
     int mines;
-    std::shared_ptr<Weapon> weapon;
+	bool hasWeapon;
+    Weapon weapon;
 	
 	UnitAction action;
 
