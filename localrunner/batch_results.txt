@@ -1,3 +1,3 @@
 Player1: codeside.exe Player2: codesidev4.exe
-Score: 14270/7325
-Wins: 11/6
+Score: 13465/4870
+Wins: 13/6

@@ -6,8 +6,8 @@
 
 class ExplosionParams {
 public:
-    double radius;
-    int damage;
+    double radius = 0.;
+    int damage = 0;
     ExplosionParams();
     ExplosionParams(double radius, int damage);
     static ExplosionParams readFrom(InputStream& stream);

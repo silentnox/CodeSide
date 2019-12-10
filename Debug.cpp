@@ -14,3 +14,9 @@ void Debug::print( const std::string & message )
 {
 	draw( CustomData::Log( message ) );
 }
+
+void Debug::drawLine( Vec2 from, Vec2 to, double width, ColorFloat color )
+{
+	draw( CustomData::Line( from, to, width, color ) );
+}
+

@@ -7,7 +7,8 @@
 #include <string>
 #include <unordered_map>
 
-Timer totalTime,stratTime;
+Timer totalTime;
+Clock totalClock;
 
 class Runner {
 public:
@@ -22,6 +23,7 @@ public:
     MyStrategy myStrategy;
     Debug debug(outputStream);
 	totalTime.Begin();
+	totalClock.Begin();
     while (true) {
       auto message = ServerMessageGame::readFrom(*inputStream);
       const auto& playerView = message.playerView;
@@ -38,7 +40,8 @@ public:
       outputStream->flush();
     }
 	totalTime.End();
-	std::cout << "Total msec: " << totalTime.GetTotalMsec() << std::endl;
+	totalClock.End();
+	std::cout << "Total msec: " << totalTime.GetTotalMsec() << " clock: " << totalClock.GetTotalMsec() << std::endl;
   }
 
 private:

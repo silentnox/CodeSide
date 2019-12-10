@@ -1,7 +1,7 @@
 #include "WeaponParams.hpp"
 
 WeaponParams::WeaponParams() { }
-WeaponParams::WeaponParams(int magazineSize, double fireRate, double reloadTime, double minSpread, double maxSpread, double recoil, double aimSpeed, BulletParams bullet, std::shared_ptr<ExplosionParams> explosion) : magazineSize(magazineSize), fireRate(fireRate), reloadTime(reloadTime), minSpread(minSpread), maxSpread(maxSpread), recoil(recoil), aimSpeed(aimSpeed), bullet(bullet), explosion(explosion) { }
+WeaponParams::WeaponParams(int magazineSize, double fireRate, double reloadTime, double minSpread, double maxSpread, double recoil, double aimSpeed, BulletParams bullet, std::shared_ptr<ExplosionParams> explosion) : magazineSize(magazineSize), fireRate(fireRate), reloadTime(reloadTime), minSpread(minSpread), maxSpread(maxSpread), recoil(recoil), aimSpeed(aimSpeed), bullet(bullet), explosion(*explosion) { }
 WeaponParams WeaponParams::readFrom(InputStream& stream) {
     WeaponParams result;
     result.magazineSize = stream.readInt();
@@ -13,10 +13,9 @@ WeaponParams WeaponParams::readFrom(InputStream& stream) {
     result.aimSpeed = stream.readDouble();
     result.bullet = BulletParams::readFrom(stream);
     if (stream.readBool()) {
-        result.explosion = std::shared_ptr<ExplosionParams>(new ExplosionParams());
-        *result.explosion = ExplosionParams::readFrom(stream);
+        result.explosion = ExplosionParams::readFrom(stream);
     } else {
-        result.explosion = std::shared_ptr<ExplosionParams>();
+       // result.explosion = std::shared_ptr<ExplosionParams>();
     }
     return result;
 }
@@ -29,11 +28,11 @@ void WeaponParams::writeTo(OutputStream& stream) const {
     stream.write(recoil);
     stream.write(aimSpeed);
     bullet.writeTo(stream);
-    if (explosion) {
+    if (explosion.damage) {
         stream.write(false);
     } else {
         stream.write(true);
-        (*explosion).writeTo(stream);
+        explosion.writeTo(stream);
     }
 }
 std::string WeaponParams::toString() const {

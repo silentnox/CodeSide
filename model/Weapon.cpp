@@ -1,4 +1,5 @@
 #include "Weapon.hpp"
+#include <math.h>
 
 Weapon::Weapon() { }
 Weapon::Weapon(WeaponType typ, WeaponParams params, int magazine, bool wasShooting, double spread, std::shared_ptr<double> fireTimer, std::shared_ptr<double> lastAngle, std::shared_ptr<int> lastFireTick) : type(typ), params(params), magazine(magazine), wasShooting(wasShooting), spread(spread), fireTimer(*fireTimer), lastAngle(*lastAngle), lastFireTick(*lastFireTick) { }

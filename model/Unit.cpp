@@ -43,17 +43,17 @@ void Unit::writeTo(OutputStream& stream) const {
     }
 }
 std::string Unit::toString() const {
-    return std::string("Unit") + "(" +
-        std::to_string(playerId) +
-        std::to_string(id) +
-        std::to_string(health) +
-        position.toString() +
-        size.toString() +
-        jumpState.toString() +
-        (walkedRight ? "true" : "false") + 
-        (stand ? "true" : "false") + 
-        (onGround ? "true" : "false") + 
-        (onLadder ? "true" : "false") + 
+    return std::string("Unit") + "(" + "pid: " +
+        std::to_string(playerId) + "id: " +
+        std::to_string(id) + "hp: " +
+        std::to_string(health) + "pos: " +
+        position.toString() + "s: "+
+        size.toString() + "" +
+        jumpState.toString() + "wr: " +
+        (walkedRight ? "true" : "false") + "stand: " +
+        (stand ? "true" : "false") + "ongnd: " +
+        (onGround ? "true" : "false") + "onldr: " +
+        (onLadder ? "true" : "false") + "m: " +
         std::to_string(mines) +
         "TODO" + 
         ")";

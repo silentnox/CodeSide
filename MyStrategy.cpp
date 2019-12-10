@@ -4,6 +4,13 @@
 
 using namespace std;
 
+#ifdef  DEBUG
+#	define DBG(x) x
+#else
+#	define DBG(x)
+#endif //  DEBUG
+
+
 MyStrategy::MyStrategy() {}
 
 struct Persist {
@@ -23,6 +30,10 @@ std::vector<Rect> TilesByType[5];
 
 inline Rect GetUnitRect( const Unit & u ) {
 	return Rect( Vec2( u.position.x - u.size.x * 0.5, u.position.y ), Vec2( u.position.x + u.size.x * 0.5, u.position.y + u.size.y ) );
+}
+
+inline Rect GetUnitRect( const Vec2 p ) {
+	return Rect( Vec2( p.x - props.unitSize.x * 0.5, p.y ), Vec2( p.x + props.unitSize.x * 0.5, p.y + props.unitSize.y ) );
 }
 
 template <typename Item>
@@ -210,8 +221,8 @@ double HitChance( Rect target, Vec2 from, Vec2 dir, const Weapon & weapon, int n
 			continue;
 		}
 		else {
-			if (weapon.params.explosion) {
-				Rect expl( from + d*(res.second - weapon.params.explosion->radius) , weapon.params.explosion->radius );
+			if (weapon.params.explosion.damage) {
+				Rect expl( from + d*(res.second - weapon.params.explosion.radius) , weapon.params.explosion.radius );
 				if (expl.Intersects( target )) hits++;
 			}
 		}
@@ -345,7 +356,7 @@ public:
 
 		double angle = atan2( aim.y, aim.x );
 		double lastAngle = isnan( u.weapon.lastAngle ) ? angle : u.weapon.lastAngle;
-		double angleDelta = abs( angle - lastAngle );
+		double angleDelta = AngleDiff( angle, lastAngle );
 
 		u.weapon.spread += angleDelta;
 		u.weapon.lastAngle = angle;
@@ -622,28 +633,22 @@ vector<Vec2> PredictPath( const Unit & u, const UnitAction & a, int ticks ) {
 	return path;
 }
 
-vector<Vec2> PredictPath2( int id, const UnitAction & a, int ticks, const Game & game ) {
+vector<Vec2> PredictPath2( const Unit & u, const UnitAction & a, int ticks, const vector<Unit> & other ) {
 	Sim sim( 1 );
 	vector<Vec2> path;
 	path.reserve( ticks );
-	sim.units = game.units;
-	sim.units[id].action = a;
-	for (int i = 0; i < ticks; i++) {
-		sim.Tick();
-		path.emplace_back( sim.units[id].position );
-	}
-	return path;
-}
+	sim.units.emplace_back( u );
+	sim.units[0].action = a;
 
-vector<Vec2> PredictBullet( const Bullet & b, int ticks ) {
-	Sim sim;
-	//sim.microticks = 1;
-	vector<Vec2> path;
-	path.reserve( ticks );
-	sim.bullets.emplace_back(b);
+	for (const Unit & u2 : other) {
+		if (u2.id != u.id) {
+			sim.units.emplace_back( u2 );
+		}
+	}
+
 	for (int i = 0; i < ticks; i++) {
 		sim.Tick();
-		path.emplace_back( sim.bullets[0].position );
+		path.emplace_back( sim.units[0].position );
 	}
 	return path;
 }
@@ -683,9 +688,9 @@ inline UnitAction GetAction( int dir ) {
 
 bool IsBetterWeapon( WeaponType current, WeaponType newweapon ) {
 	int score[3];
-	score[WeaponType::PISTOL] = 1;
-	score[WeaponType::ASSAULT_RIFLE] = 2;
-	score[WeaponType::ROCKET_LAUNCHER] = 3;
+	score[WeaponType::PISTOL]			= 1;
+	score[WeaponType::ASSAULT_RIFLE]	= 1;
+	score[WeaponType::ROCKET_LAUNCHER]	= 2;
 	return score[newweapon] > score[current];
 }
 
@@ -728,6 +733,10 @@ pair<bool, UnitAction> Dodge( int ticks, const Unit &unit, const Game &game, Deb
 		actions[i].first = sim2.units[0].health;
 		actions[i].second = i;
 		if (sim2.units[0].health < unit.health) dodge = true;
+
+		ColorFloat c = sim2.units[0].health < unit.health ? ColorFloat( 1, 0, 0, 1 ) : ColorFloat( 0, 0, 1, 1 );
+
+		DBG( DrawPath( PredictPath2( unit, GetAction( i ), 100, game.units ), debug, c ) );
 	}
 
 	ipair best = stdh::best( actions, []( const ipair & a, const ipair & b ) { return a.first > b.first; } );
@@ -738,6 +747,22 @@ pair<bool, UnitAction> Dodge( int ticks, const Unit &unit, const Game &game, Deb
 
 	return pair<bool, UnitAction>( dodge, GetAction(best.second) );
 }
+
+//Vec2 PredictAim( Vec2 from, const Weapon & w, const Unit & target ) {
+//	if (!target.onGround) {
+//		Sim sim( 1 );
+//		sim.units.emplace_back( target );
+//		for (int i = 0; i < 60; i++) {
+//			if (sim.units[0].onGround) break;
+//			if (from.Dist( sim.units[0].position + Vec2( 0, .9 )) < w.params.bullet.speed*i ) break;
+//			sim.Tick();
+//		}
+//		return from.DirTo( sim.units[0].position + Vec2( 0, 0.9 ) );
+//	}
+//	else {
+//		return from.DirTo( target.position + Vec2( 0, 0.9 ) );
+//	}
+//}
 
 struct actionScore {
 	int action = 0;
@@ -812,7 +837,9 @@ pair<bool, UnitAction> Avoid( const Unit &unit, const Unit & enemy, Vec2 target,
 			
 			if (self.hasWeapon && self.weapon.fireTimer <= 0 + DBL_EPSILON) {
 				actions[i].hcOwn += HitChance( GetUnitRect( en ), self.position + Vec2(0,0.9), dir, self.weapon, 10 );
-				actions[i].hcSelf += HitChance( GetUnitRect( self ), self.position + Vec2(0,0.9), dir, self.weapon, 6 );
+				if (unit.weapon.params.explosion.damage) {
+					actions[i].hcSelf += HitChance( GetUnitRect( self ), self.position + Vec2( 0, 0.9 ), dir, self.weapon, 6 );
+				}
 			}
 			if (en.hasWeapon && en.weapon.fireTimer <= 0 + DBL_EPSILON) {
 				actions[i].hcEnemy += HitChance( GetUnitRect( self), sim.units[1].position + Vec2( 0, 0.9 ), dir2, en.weapon, 10 );
@@ -820,6 +847,7 @@ pair<bool, UnitAction> Avoid( const Unit &unit, const Unit & enemy, Vec2 target,
 		}
 		actions[i].health = self.health;
 		actions[i].hcOwn /= numTicks;
+		actions[i].hcSelf /= numTicks;
 		actions[i].hcEnemy /= numTicks;
 		
 		actions[i].score = self.health * 100;
@@ -844,11 +872,87 @@ pair<bool, UnitAction> Avoid( const Unit &unit, const Unit & enemy, Vec2 target,
 	return pair<bool, UnitAction>( avoid, GetAction( best.action ) );
 }
 
-UnitAction AimHelper( const Unit &unit, const Game &game, Debug &debug ) {
-	return UnitAction();
+UnitAction AimHelper( const Unit &unit, const Unit & enemy, const Game &game, Debug &debug ) {
+	if (!unit.hasWeapon) return UnitAction();
+
+	const double moveDelta = 10. * (1. / 60.);
+
+	double hc = 0;
+	double hcSelf = 0;
+
+	Rect r = GetUnitRect( unit );
+	Rect er = GetUnitRect( enemy );
+	Vec2 center = r.Center();
+
+	//Vec2 enemyDir = center.DirTo( er.Center() );
+	//Vec2 enemyDir2 = center.DirTo( enemy.position );
+	bool vis1 = RaycastLevel( center, center.DirTo( enemy.position ), er ).first;
+	bool vis2 = RaycastLevel( center, center.DirTo( enemy.position + Vec2(0,0.9) ), er ).first;
+	bool vis3 = RaycastLevel( center, center.DirTo( enemy.position + Vec2( 0, 1.8 ) ), er ).first;
+
+	Vec2 aim;
+	//Vec2 aim = center.DirTo( enemy.position + Vec2( 0, 0.9 ) );
+	//Vec2 aim = PredictAim( center, unit.weapon, enemy );
+
+	Vec2 predictPos;
+
+	if (!enemy.onGround && (enemy.jumpState.maxTime < 1e-5 || !enemy.jumpState.canCancel) ) {
+		Sim sim( 1 );
+		sim.units.emplace_back( enemy );
+		for (int i = 0; i < 60; i++) {
+			if (sim.units[0].onGround) break;
+			if (center.Dist( sim.units[0].position + Vec2( 0, .9 ) ) < enemy.weapon.params.bullet.speed/60.*i) break;
+			sim.Tick();
+		}
+		predictPos = sim.units[0].position;
+	}
+	else {
+		predictPos = enemy.position;
+	}
+
+	aim = center.DirTo( predictPos + Vec2(0,0.9) );
+
+	double angle = atan2( aim.y, aim.x );
+	double angleDelta = AngleDiff( angle, unit.weapon.lastAngle );
+
+	Vec2 lastAim = Vec2( 1, 0 ).Rotate( unit.weapon.lastAngle );
+
+	Weapon w = unit.weapon;
+	w.spread += angleDelta;
+
+	//hc = HitChance( GetUnitRect( enemy ), center, aim, w );
+	hc = HitChance( GetUnitRect( predictPos ), center, aim, w );
+	hcSelf = HitChance( GetUnitRect( unit ), center, aim, w );
+
+	bool shoot = true;
+
+	if (unit.weapon.type == ROCKET_LAUNCHER) {
+		//if (hcSelf > hc) shoot = false;
+		if (hc < 0.4) shoot = false;
+		if (hcSelf > 0.2) shoot = false;
+	}
+
+	if (hc < 0 + DBL_EPSILON) shoot = false;
+
+#ifdef DEBUG
+	debug.draw( CustomData::Rect( predictPos, Vec2( 0.3, 0.3 ), ColorFloat( 1, 1, 1, 1 ) ) );
+	debug.drawLine( enemy.position, predictPos );
+	debug.print( "weapon: hc: " + str( hc ) + " hcs: " + str( hcSelf ) + " ang: " + str( Deg( angle ) ) + " angd: " + str( Deg( angleDelta ) ) + " spr: " + str( Deg(w.spread)) + " timer: " + str(w.fireTimer) );
+	double rc = RaycastLevel( center, aim ).second;
+	debug.draw( CustomData::Line( center, center + aim * rc, 0.1, ColorFloat( 1, 0, 0, 1 ) ) );
+	debug.print( "tracedist: " + str( rc ) + " " + str(enemy.onGround) );
+#endif
+
+	UnitAction action;
+
+	action.aim = aim;
+	action.shoot = shoot;
+
+	return action;
 }
 
 UnitAction Quickstart( const Unit &unit, const Game &game, Debug &debug ) {
+	static const double moveDelta = 10. * (1. / 60.);
 
 	Vec2 center = unit.position + Vec2( 0, unit.size.y*0.5 );
 	Rect r = GetUnitRect( unit );
@@ -856,99 +960,89 @@ UnitAction Quickstart( const Unit &unit, const Game &game, Debug &debug ) {
 	pair<double, const Unit *> enemy = NearestUnit( center, game.units, true );
 	pair<double, const LootBox *> weapon = NearestLootbox( center, center, game.lootBoxes, Item::WEAPON );
 	pair<double, const LootBox *> health = NearestLootbox( center, enemy.second->position, game.lootBoxes, Item::HEALTH_PACK );
-	pair<double, const Mine *> mine = NearestMine( center, game.mines );
+	pair<double, const LootBox *> mine = NearestLootbox( center, enemy.second->position, game.lootBoxes, Item::MINE );
+	pair<double, const Mine *> mineTrap = NearestMine( center, game.mines );
 
 	bool betterWeapon = !unit.hasWeapon || IsBetterWeapon( unit.weapon.type, weapon.second->item->weaponType );
 
 	Vec2 enemyDir = center.DirTo( enemy.second->position );
 	bool enemyVisible = RaycastLevel( center, enemyDir, GetUnitRect( *enemy.second ) ).first;
 
-	bool blockedLeft = IsOnTile( r + Vec2(-1,0), WALL );
-	bool blockedRight = IsOnTile( r + Vec2(1,0), WALL );
+	//bool blockedLeft = IsOnTile( r + Vec2(-1,0), WALL );
+	//bool blockedRight = IsOnTile( r + Vec2(1,0), WALL );
 
 	bool attack = false;
 
+	int target = -1;
+
 	Vec2 targetPos = unit.position;
 	if ( !unit.hasWeapon ) {
+		target = 0;
 		targetPos = weapon.second->position;
 	}
 	else if (unit.health < props.unitMaxHealth && health.second) {
+		target = 1;
 		targetPos = health.second->position;
 	}
 	else if (unit.hasWeapon && betterWeapon ) {
+		target = 2;
 		targetPos = weapon.second->position;
 	}
+	//else if (mine.second && mine.first < 2) {
+	//	target = 5;
+	//}
 	else {
 		attack = true;
-		//if ( enemy.first > 8 || (!enemyVisible && enemy.first > 3) ) {
-		//	targetPos = enemy.second->position;
-		//}
-		//else {
-		//	if (enemyVisible) {
-		//		targetPos = center + -enemyDir * 3;
-		//		if (!Rect( 1, 1, 39, 29 ).Contains( targetPos )) {
-		//			targetPos = center + enemyDir * 3;
-		//		}
-		//		if (abs( targetPos.x - center.x ) < 2) {
-		//			targetPos.x = center.x + 5;
-		//		}
-		//		if (targetPos.y < enemy.second->position.y) targetPos.y = enemy.second->position.y + 2;
-		//	}
-		//}
-		//if (mine.second && mine.first < 4) {
-		//	targetPos = -center.DirTo( mine.second->position ) * 3;
-		//}
-		//targetPos = enemy.second->position;
-		if (enemy.first > 8 || !enemyVisible) {
+		if (enemy.first > 9) {
+			target = 3;
 			targetPos = enemy.second->position;
 		}
 		else {
-			targetPos = center + -enemyDir * 3;
-			if (!Rect( 1, 1, 39, 29 ).Contains( targetPos )) {
-				targetPos = center + enemyDir * 3;
+			if (abs( enemy.second->position.x - unit.position.x ) < 3 || enemy.second->position.y > unit.position.y || !enemyVisible) {
+				target = 4;
+				targetPos.x = unit.position.x + -enemyDir.x * 10;
+				if (!Rect( 1, 1, 39, 29 ).Contains( targetPos )) {
+					targetPos.x = unit.position.x + enemyDir.x * 10;
+				}
+				targetPos.y = enemy.second->position.y + 2;
 			}
 		}
-		if (abs( targetPos.x - center.x ) < 2) {
-			targetPos.x = center.x + 5;
-		}
-		if (targetPos.y < enemy.second->position.y) targetPos.y = enemy.second->position.y + 2;
 	}
 
 	//bool blockedByEnemy = RaycastLevel( center, (targetPos-center).Normalized(), GetUnitRect( *enemy.second ) ).first;
 
-	Vec2 aim = center.DirTo( enemy.second->position );
+	//Vec2 aim = center.DirTo( enemy.second->position + Vec2(0,0.9) );
 
-	bool jump = targetPos.y > unit.position.y;
-	if (targetPos.x > unit.position.x && blockedRight) jump = true;
-	if (targetPos.x < unit.position.x && blockedLeft) jump = true;
+	//bool jump = targetPos.y > unit.position.y;
+	//if (targetPos.x > unit.position.x && blockedRight) jump = true;
+	//if (targetPos.x < unit.position.x && blockedLeft) jump = true;
 	//jump |= blockedByEnemy;
 
 	UnitAction action;
-	action.velocity = Sign(targetPos.x - unit.position.x,0.1) * props.unitMaxHorizontalSpeed;
-	action.jump = jump;
-	action.jumpDown = !action.jump;
-	action.aim = aim;
-	action.shoot = true;
-	action.swapWeapon = false;
-	action.plantMine = false;
+	action = GetSimpleMove( unit, targetPos );
+	//action.velocity = Sign(targetPos.x - unit.position.x,0.1) * props.unitMaxHorizontalSpeed;
+	//action.jump = jump;
+	//action.jumpDown = !action.jump;
+	//action.aim = aim;
+	//action.shoot = true;
+	//action.swapWeapon = false;
+	//action.plantMine = false;
 
-	double hc = 0;
-	double hcSelf = 0;
+	//double hc = 0;
+	//double hcSelf = 0;
 
-	if (unit.hasWeapon) {
-		hc = HitChance( GetUnitRect( *enemy.second ), center, aim, unit.weapon );
-		hcSelf = HitChance( GetUnitRect( unit ), center, aim, unit.weapon );
+	//if (unit.hasWeapon) {
+	//	hc = HitChance( GetUnitRect( *enemy.second ), center, aim, unit.weapon );
+	//	hcSelf = HitChance( GetUnitRect( unit ), center, aim, unit.weapon );
 
-		if (unit.weapon.type == ROCKET_LAUNCHER) {
-			if (hcSelf > 0.2) action.shoot = false;
-			//if (enemy.first > 6 && hcSelf > 0.05) action.shoot = false;
-			//if (hcSelf > 0.4 || hcSelf > hc) action.shoot = false;
-			if (hc < 0.4) action.shoot = false;
-			//if (hc < 0.6 && enemy.first < 6) action.shoot = false;
-		}
-	}
+	//	if (unit.weapon.type == ROCKET_LAUNCHER) {
+	//		if (hcSelf > hc) action.shoot = false;
+	//	}
+	//}
 
-	if (weapon.first < 2 && betterWeapon) {
+	//if (hc < 0 + DBL_EPSILON) action.shoot = false;
+
+	if (r.Intersects(GetRect(*weapon.second)) && betterWeapon && enemy.first > 3) {
 		action.swapWeapon = true;
 	}
 
@@ -963,39 +1057,31 @@ UnitAction Quickstart( const Unit &unit, const Game &game, Debug &debug ) {
 		action.velocity = dodge.second.velocity;
 	}
 
-	//action = UnitAction();
-	//action.jump = true;
+	UnitAction aim = AimHelper( unit, *enemy.second, game, debug );
 
-	double moveDelta = 10. * (1. / 60.);
+	action.shoot = aim.shoot;
+	action.aim = aim.aim;
 
-	//if ( !dodge.first && action.jump && unit.jumpState.maxTime < props.unitJumpTime *0.5 && GetTileAt( unit.position - Vec2( 0, moveDelta ) ) == PLATFORM && GetTileAt( unit.position ) == EMPTY) {
-	//	action.jump = false;
-	//	action.jumpDown = false;
-	//}
+	if ( !dodge.first && action.jump && unit.jumpState.maxTime < props.unitJumpTime *0.5 && GetTileAt( unit.position - Vec2( 0, moveDelta ) ) == PLATFORM && GetTileAt( unit.position ) == EMPTY) {
+		action.jump = false;
+		action.jumpDown = false;
+	}
 
-	//if (enemy.first > 4 && ( abs(enemy.second->position.x-unit.position.x) < 2 && enemy.second->position.y < unit.position.y)/*&& unit.health > nearestEnemy->health*/) {
-	//	//action.plantMine = true;
-	//}
 	if (enemy.first < 1.5 || (abs( enemy.second->position.x - unit.position.x ) < 2 && enemy.second->position.y < unit.position.y)/*&& unit.health > nearestEnemy->health*/) {
 		action.plantMine = true;
 	}
 
-	double rc = RaycastLevel( center, aim ).second;
+#ifdef DEBUG
+	//debug.print( "ontop: " + str( r.Intersects( GetUnitRect( *enemy.second )  )) );
+	debug.print( "target: " + str(target) + " " + action.toString() );
+	//debug.print( "enemy: " + std::to_string( enemy.first ) + " " + std::to_string(enemyVisible) + " " + std::to_string(hc) + " " + std::to_string( hcSelf ) );
+	debug.print( "dodge: " + str( dodge.first ) + " " + unit.jumpState.toString() );
+	//debug.print( "enemy: " + enemy.second->toString() );
+	//debug.draw( CustomData::Log( std::string( "lastangle: " ) + std::to_string( Deg( unit.weapon.lastAngle ) ) + " " + std::to_string( Deg( unit.weapon.spread ) ) ) )
 
-	debug.draw( CustomData::Line( center, center + aim * rc, 0.1, ColorFloat( 1, 0, 0, 1 ) ) );
 
-	//debug.draw( CustomData::Log( std::string( "Target pos: " ) + targetPos.toString() ) );
-	//debug.print( str(GetTileAt(unit.position - Vec2( 0, 1 ))) + " " + str(GetTileAt(unit.position )) );
-	debug.draw( CustomData::Log( action.toString() + " jss>0:" + std::to_string( unit.jumpState.speed > 0) ) );
-	//debug.draw( CustomData::Log( "enemy: " + std::to_string( enemy.first ) + " " + std::to_string(enemyVisible) + " " + std::to_string(hc) + " " + std::to_string( hcSelf ) ) );
-	debug.print( "enemy: " + std::to_string( enemy.first ) + " " + std::to_string(enemyVisible) + " " + std::to_string(hc) + " " + std::to_string( hcSelf ) );
-	//debug.draw( CustomData::Log( std::string( "enemy: " ) + std::to_string( enemy ) ) );
-	debug.draw( CustomData::Log( "dodge: " + std::to_string( dodge.first ) + " " + unit.jumpState.toString() ) );
-	debug.draw( CustomData::Log( std::string( "lastangle: " ) + std::to_string( Deg( unit.weapon.lastAngle ) ) + " " + std::to_string( Deg( unit.weapon.spread ) ) ) );
-	//debug.draw( CustomData::Log( std::string( "firetimer: " ) + std::to_string( unit.weapon.fireTimer ) ) );
-	debug.draw( CustomData::Log( std::string( "tracedist: " ) + std::to_string( rc ) ));
-
-	DrawPath( PredictPath( unit, action, 100 ), debug );
+	DBG( DrawPath( PredictPath( unit, action, 100 ), debug ) );
+#endif
 
 	return action;
 }

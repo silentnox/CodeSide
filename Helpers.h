@@ -53,6 +53,12 @@ inline double Sign( double d, double eps = 0. ) {
 	return (d > 0) ? ((d > eps)?1:0) : ((d<-eps)?-1:0);
 }
 
+// from -PI to PI
+inline double AngleDiff( double a, double b ) {
+	double diff = abs( a - b );
+	return diff > M_PI ? diff - M_PI : diff;
+}
+
 #undef min
 #undef max
 
@@ -229,29 +235,29 @@ namespace stdh {
 		return *b;
 	}
 
-	template <typename T, typename Predicate>
-	const auto * best_ptr( const T & in, Predicate pred ) {
-		auto * b = null;
-		for (const auto & it = in.begin(); it != in.end(); ++it) {
-			if (pred( *it, *b )) {
-				b = &it;
-			}
-		}
-		return b;
-	}
+	//template <typename T, typename Predicate>
+	//const auto * best_ptr( const T & in, Predicate pred ) {
+	//	auto * b = null;
+	//	for (const auto & it = in.begin(); it != in.end(); ++it) {
+	//		if (pred( *it, *b )) {
+	//			b = &it;
+	//		}
+	//	}
+	//	return b;
+	//}
 
-	template <int Num, typename T, typename T2>
-	void combination( T2 list, std::vector<std::array<T,Num>> & out ) {
-		if (Num < 1) {
-			out.resize( out.size() + 1 );
-			return;
-		}
+	//template <int Num, typename T, typename T2>
+	//void combination( T2 list, std::vector<std::array<T,Num>> & out ) {
+	//	if (Num < 1) {
+	//		out.resize( out.size() + 1 );
+	//		return;
+	//	}
 
-		for (auto item : list) {
-			out.back()[Num] = item;
-			combination<Num - 1>( list, out );
-		}
-	}
+	//	for (auto item : list) {
+	//		out.back()[Num] = item;
+	//		combination<Num - 1>( list, out );
+	//	}
+	//}
 
 }
 
@@ -323,10 +329,10 @@ public:
 		Total = 0;
 	}
 	inline long GetMsec() const {
-		return (long)(TimeEnd / (CLOCKS_PER_SEC * 1000));
+		return Time - TimeEnd;
 	}
 	inline long GetTotalMsec() const {
-		return (long)(Total / (CLOCKS_PER_SEC * 1000));
+		return Total;
 	}
 	inline double GetTotalSeconds() const {
 		return (double)Total / CLOCKS_PER_SEC;
