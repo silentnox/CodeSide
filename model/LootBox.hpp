@@ -16,7 +16,7 @@ class LootBox {
 public:
     Vec2Double position;
     Vec2Double size;
-    std::shared_ptr<Item> item;
+    Item item;
     LootBox();
     LootBox(Vec2Double position, Vec2Double size, std::shared_ptr<Item> item);
     static LootBox readFrom(InputStream& stream);

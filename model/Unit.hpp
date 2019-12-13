@@ -45,7 +45,11 @@ public:
 	
 	UnitAction action;
 
+	bool onPlatform = false;
+
+	// simulator
 	int numHealed = 0;
+	int overheal = 0;
 	int lastDamage = 0;
 
     Unit();

@@ -65,20 +65,17 @@
 //    return std::string("Item::Mine") + "(" +
 //        ")";
 //}
-std::shared_ptr<Item> Item::readFrom(InputStream& stream) {
-	std::shared_ptr<Item> item = std::shared_ptr<Item>( new Item() );
-	item->type = (Type)stream.readInt();
-    switch (item->type) {
-    case 0:
-		item->health = stream.readInt();
-        //return std::shared_ptr<Item::HealthPack>(new Item::HealthPack(Item::HealthPack::readFrom(stream)));
+Item Item::readFrom(InputStream& stream) {
+	Item item;
+	item.type = (Type)stream.readInt();
+    switch (item.type) {
+	case Item::HEALTH_PACK:
+		item.health = stream.readInt();
 		break;
-    case 1:
-		item->weaponType = (WeaponType)stream.readInt();
-        //return std::shared_ptr<Item::Weapon>(new Item::Weapon(Item::Weapon::readFrom(stream)));
+	case Item::WEAPON:
+		item.weaponType = (WeaponType)stream.readInt();
 		break;
-    case 2:
-        //return std::shared_ptr<Item::Mine>(new Item::Mine(Item::Mine::readFrom(stream)));
+	case Item::MINE:
 		break;
     default:
         throw std::runtime_error("Unexpected discriminant value");

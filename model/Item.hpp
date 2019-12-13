@@ -16,11 +16,11 @@ public:
 		MINE = 2
 	};
 
-	Type type = (Type)-1;
-	WeaponType weaponType = (WeaponType)-1;
-	int health = 0;
+	Type type;
+	WeaponType weaponType;
+	int health;
 
-    static std::shared_ptr<Item> readFrom(InputStream& stream);
+    static Item readFrom(InputStream& stream);
     void writeTo(OutputStream& stream) const;
     std::string toString() const;
 };

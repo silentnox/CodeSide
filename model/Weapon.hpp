@@ -25,7 +25,7 @@ public:
     double spread = 0;
     double fireTimer = 0;
     double lastAngle = 0;
-    int lastFireTick = 0;
+    int lastFireTick = -1;
     Weapon();
     Weapon(WeaponType typ, WeaponParams params, int magazine, bool wasShooting, double spread, std::shared_ptr<double> fireTimer, std::shared_ptr<double> lastAngle, std::shared_ptr<int> lastFireTick);
     static Weapon readFrom(InputStream& stream);

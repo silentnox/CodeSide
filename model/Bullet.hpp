@@ -22,7 +22,7 @@ public:
     Vec2Double velocity;
     int damage;
     double size;
-    std::shared_ptr<ExplosionParams> explosionParams;
+    ExplosionParams explosionParams;
     Bullet();
     Bullet(WeaponType weaponType, int unitId, int playerId, Vec2Double position, Vec2Double velocity, int damage, double size, std::shared_ptr<ExplosionParams> explosionParams);
     static Bullet readFrom(InputStream& stream);

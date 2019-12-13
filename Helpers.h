@@ -45,6 +45,18 @@ std::string str( const T & in ) {
 	return std::to_string( in );
 }
 
+template <>
+inline std::string str( const bool & in ) {
+	return in?"true":"false";
+}
+
+template <>
+inline std::string str( const std::string & in ) {
+	return in;
+}
+
+#define VARDUMP(var) (#var": " + str(var))
+
 inline double Sqr( double d ) {
 	return d * d;
 }
@@ -329,10 +341,10 @@ public:
 		Total = 0;
 	}
 	inline long GetMsec() const {
-		return Time - TimeEnd;
+		return ((double)(Time - TimeEnd) / CLOCKS_PER_SEC) * 1000;
 	}
 	inline long GetTotalMsec() const {
-		return Total;
+		return ((double)Total / CLOCKS_PER_SEC) * 1000;
 	}
 	inline double GetTotalSeconds() const {
 		return (double)Total / CLOCKS_PER_SEC;

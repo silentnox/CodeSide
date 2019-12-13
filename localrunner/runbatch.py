@@ -108,6 +108,6 @@ for i in range(0,num):
     with open('batch_results.txt','w+') as f:
         f.writelines('Player1: ' + clname1 + ' Player2: ' + clname2 +'\n')
         f.writelines('Score: ' + str(total1) + '/' + str(total2) + '\n')
-        f.writelines('Wins: ' + str(wins1) + '/' + str(wins2) +'\n')
+        f.writelines('Wins: ' + str(wins1) + '/' + str(wins2) + ' (' + str(draws) + ')\n')
 
-print(str(total1) + " " + str(total2))
+print( "Wins: (" + str(wins1) + ":" + str(wins2) + ") Draws: " + str(draws) + " Score: " + str(total1) + ":" + str(total2))

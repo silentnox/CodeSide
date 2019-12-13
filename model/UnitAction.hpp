@@ -16,9 +16,28 @@ public:
     bool reload = false;
     bool swapWeapon = false;
     bool plantMine = false;
-    UnitAction();
+    
+	UnitAction();
     UnitAction(double velocity, bool jump, bool jumpDown, Vec2Double aim = Vec2Double(0,0), bool shoot = false, bool reload = false, bool swapWeapon = false, bool plantMine = false);
-    static UnitAction readFrom(InputStream& stream);
+    
+	void SetMove( const UnitAction & a ) {
+		jump = a.jump;
+		jumpDown = a.jumpDown;
+		velocity = a.velocity;
+	}
+
+	void SetShoot( const UnitAction & a ) {
+		shoot = a.shoot;
+		aim = a.aim;
+	}
+
+	void SetMisc( const UnitAction & a ) {
+		reload = a.reload;
+		swapWeapon = a.swapWeapon;
+		plantMine = a.plantMine;
+	}
+	
+	static UnitAction readFrom(InputStream& stream);
     void writeTo(OutputStream& stream) const;
     std::string toString() const;
 };

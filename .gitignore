@@ -7,3 +7,6 @@ X64/
 *.zip
 *.pdb
 *.log
+
+*.ilk
+*.suo
