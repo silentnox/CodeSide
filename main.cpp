@@ -19,28 +19,37 @@ public:
     outputStream->write(token);
     outputStream->flush();
   }
+
   void run() {
     MyStrategy myStrategy;
     Debug debug(outputStream);
+
 	totalTime.Begin();
 	totalClock.Begin();
+
     while (true) {
       auto message = ServerMessageGame::readFrom(*inputStream);
       const auto& playerView = message.playerView;
-      if (!playerView) {
+      
+	  if (!playerView) {
         break;
       }
+
       std::unordered_map<int, UnitAction> actions;
       for (const Unit &unit : playerView->game.units) {
         if (unit.playerId == playerView->myId) {
           actions.emplace(std::make_pair(unit.id, myStrategy.getAction(unit, playerView->game, debug)));
         }
       }
+
       PlayerMessageGame::ActionMessage(actions).writeTo(*outputStream);
+
       outputStream->flush();
     }
+
 	totalTime.End();
 	totalClock.End();
+
 	std::cout << "Total msec: " << totalTime.GetTotalMsec() << " clock: " << totalClock.GetTotalMsec() << std::endl;
   }
 

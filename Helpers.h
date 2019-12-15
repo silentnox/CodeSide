@@ -17,6 +17,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <array>
 #include <list>
 #include <set>
 #include <sstream>
@@ -106,7 +107,7 @@ inline double random01() {
 }
 
 inline bool IsEpsilon( double d ) {
-	return abs( d ) <= FLT_EPSILON; 
+	return abs( d ) <= DBL_EPSILON; 
 }
 
 inline double Deg( double rad ) {
@@ -878,9 +879,9 @@ public:
 	typedef std::set<ipair> node;
 
 	std::vector< node > adj;
-	std::vector< int > ids;
+	//std::vector< int > ids;
 
-	Graph( int V ) {
+	Graph( int V = 0 ) {
 		adj.resize( V );
 	}
 	inline void AddEdge( int u, int v, int w = 1, bool twoWay = false ) {
