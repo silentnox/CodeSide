@@ -13,6 +13,14 @@ using namespace std;
 
 MyStrategy::MyStrategy() {}
 
+bool IsBetterWeapon( WeaponType current, WeaponType newweapon ) {
+	int score[3];
+	score[WeaponType::PISTOL] = 2;
+	score[WeaponType::ASSAULT_RIFLE] = 1;
+	score[WeaponType::ROCKET_LAUNCHER] = 3;
+	return score[newweapon] > score[current];
+}
+
 struct Persist {
 	Vec2 prevPos;
 	int prevHP;
@@ -26,8 +34,10 @@ Debug debug;
 Game game;
 
 int selfPlayer;
+bool mode2x2;
 
 int selfScore, enemyScore;
+int selfScoreTick, enemyScoreTick;
 
 Tile Tiles[40][30];
 Rect TileRects[40][30];
@@ -139,6 +149,8 @@ void InitLevel( const Game & _game, const Unit & self ) {
 	props = _game.properties;
 	level = _game.level;
 
+	mode2x2 = _game.units.size() > 2;
+
 	selfPlayer = self.playerId;
 
 	TilesByType[0].reserve( 1000 );
@@ -172,6 +184,8 @@ void InitLevel( const Game & _game, const Unit & self ) {
 void InitTick( const Unit & unit, const Game & _game, const Debug & _debug ) {
 	static int tickNum = -1;
 	if (tickNum == game.currentTick) return;
+
+	InitLevel( _game, unit );
 
 	for (const Player & p : game.players) {
 		if (p.id == unit.playerId) selfScore = p.score;
@@ -257,14 +271,6 @@ double HitChance( Rect target, Vec2 from, Vec2 dir, const Weapon & weapon, int n
 	}
 
 	return hits/(double)numRays;
-}
-
-bool IsBetterWeapon( WeaponType current, WeaponType newweapon ) {
-	int score[3];
-	score[WeaponType::PISTOL] = 2;
-	score[WeaponType::ASSAULT_RIFLE] = 1;
-	score[WeaponType::ROCKET_LAUNCHER] = 3;
-	return score[newweapon] > score[current];
 }
 
 int FindUnit( int id, const vector<Unit> & units ) {
@@ -819,8 +825,10 @@ struct DodgeRes {
 	int action = -1;
 };
 
-DodgeRes Dodge( const Unit &unit, const Sim & env, int quality = 5 ) {
+DodgeRes Dodge( int idx, const Sim & env, int quality = 5 ) {
 	DodgeRes res;
+
+	const Unit & unit = env.units[idx];
 
 	if (env.bullets.empty() && env.mines.empty()) {
 		res.maxHP = unit.health;
@@ -833,7 +841,7 @@ DodgeRes Dodge( const Unit &unit, const Sim & env, int quality = 5 ) {
 	const int maxTicks = 120;
 	
 	Sim sim( quality );
-	sim.units.resize( 1 );
+	//sim.units.resize( 1 );
 
 	//std::array<ipair,9> actions;
 
@@ -846,9 +854,10 @@ DodgeRes Dodge( const Unit &unit, const Sim & env, int quality = 5 ) {
 		sim.currentTick = env.currentTick;
 		sim.bullets = env.bullets;
 		sim.mines = env.mines;
-		sim.units[0] = unit;
+		sim.units = env.units;
+		//sim.units[0] = unit;
 
-		sim.units[0].action = GetAction( i );
+		sim.units[idx].action = GetAction( i );
 		
 		int ticks = 0;
 		for (ticks = 0; ticks < maxTicks; ticks++) {
@@ -858,20 +867,20 @@ DodgeRes Dodge( const Unit &unit, const Sim & env, int quality = 5 ) {
 				}
 				sim.SetQuality( 5 );
 			}
-			if (sim.units[0].health <= 0) break;
+			if (sim.units[idx].health <= 0) break;
 			sim.Tick();
 		}
 
-		res.score[i] = sim.units[0].health;
+		res.score[i] = sim.units[idx].health;
 		res.ticks[i] = ticks;
 
 		//actions[i].first = sim.units[0].health;
 		//actions[i].second = i;
 
-		res.minHP = min( res.minHP, sim.units[0].health );
-		res.maxHP = max( res.maxHP, sim.units[0].health );
+		res.minHP = min( res.minHP, sim.units[idx].health );
+		res.maxHP = max( res.maxHP, sim.units[idx].health );
 
-		if (sim.units[0].health >= unit.health) {
+		if (sim.units[idx].health >= unit.health) {
 			res.numSafeMoves++;
 		}
 		if (res.score[i] > res.score[res.action]) {
@@ -892,7 +901,7 @@ struct predictRes {
 	double hitChance2 = 0.;
 };
 
-predictRes HitPredict( const Unit & shooter, Vec2 aim, const Unit & unit, bool draw = false, int numTraces = 11 ) {
+predictRes HitPredict( const Unit & shooter, Vec2 aim, const Unit & target, bool checkSelf, int numTraces, bool draw = false ) {
 	double spread = shooter.weapon.spread;
 
 	Vec2 center = GetUnitRect( shooter ).Center();
@@ -913,7 +922,8 @@ predictRes HitPredict( const Unit & shooter, Vec2 aim, const Unit & unit, bool d
 		Vec2 d = l.Slerped( i / (double)(numTraces - 1), r );
 
 		Sim sim( 5 );
-		sim.units.emplace_back( unit );
+		sim.units.emplace_back( target );
+		sim.units.emplace_back( shooter );
 		//sim.bullets = game.bullets;
 		sim.mines = game.mines;
 
@@ -934,13 +944,13 @@ predictRes HitPredict( const Unit & shooter, Vec2 aim, const Unit & unit, bool d
 
 		sim.bullets.emplace_back( b );
 
-		DodgeRes dodge = Dodge( unit, sim );
+		DodgeRes dodge = Dodge( checkSelf?1:0, sim );
 
 		if (draw) {
 			DBG( debug.drawLine( center, center + d * RaycastLevel( center, d ).second, 0.1, ColorFloat( 1, 1, 1, 1. - dodge.numSafeMoves / 9. ) ) );
 		}
 
-		if (dodge.maxHP < unit.health) {
+		if (dodge.maxHP < target.health) {
 			res.numHits++;
 		}
 		numSafeMoves += dodge.numSafeMoves;
@@ -1119,9 +1129,9 @@ UnitAction SmartAction( const Unit &unit, const Unit & enemy, Vec2 target, int t
 		//a.score = GetScore( a, unit, enemy, target, targetType, scoreMode );
 	}
 
-	//for (actionScore & a : actions) {
-	//	a.score = GetScore( a, unit, enemy, target, targetType, scoreMode );
-	//}
+	for (actionScore & a : actions) {
+		//a.score = GetScore( a, unit, enemy, target, targetType, scoreMode );
+	}
 
 	actionScore best = stdh::best( actions, []( const actionScore & a, const actionScore & b ) { return a.score > b.score; } );
 
@@ -1186,8 +1196,8 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 	}
 
 	double hcSelf = HitChance( GetUnitRect( unit ), center, aim, self.weapon );
-	predictRes hc2 = HitPredict( self, aim, enemy, true );
-	predictRes hcSelf2 = HitPredict( self, aim, self );
+	predictRes hc2 = HitPredict( self, aim, enemy, false, 11, true );
+	predictRes hcSelf2 = HitPredict( self, aim, enemy, true, 11, false );
 
 	double hcAlly = ally.second ? HitChance( GetUnitRect( *ally.second ), center, aim, self.weapon ):0.0;
 
@@ -1197,16 +1207,16 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 		//if (hcSelf > hc) shoot = false;
 		if (hc2.hitChance < 0.15) shoot = false;
 		if (hcSelf2.hitChance > 0.2) shoot = false;
-		if (selfScore > enemyScore && hc2.hitChance > 0.8 && enemy.health < 50 ) shoot = true;
+		if (selfScore >= enemyScore && hc2.hitChance > 0.8 /*&& enemy.health < 50*/ ) shoot = true;
 	}
 	else if (unit.weapon.type == PISTOL) {
-		if (hc2.hitChance < 0.3) shoot = false;
+		if (hc2.hitChance < 0.15) shoot = false;
 	}
 	else if (unit.weapon.type == ASSAULT_RIFLE) {
 		//if (hc2 < 0 + DBL_EPSILON) shoot = false;
 		if (hc < 0 + DBL_EPSILON) shoot = false;
 	}
-	if (hcAlly > 0.1) shoot = false;
+	if (hcAlly > 0.7) shoot = false;
 	//if (hc < 0 + DBL_EPSILON) shoot = false;
 
 #ifdef DEBUG
@@ -1237,9 +1247,14 @@ UnitAction Quickstart( const Unit &unit ) {
 	pair<double, const Unit *> enemy = NearestUnit( center, game.units, unit.id, true, true );
 	if(!enemy.second) enemy = NearestUnit( center, game.units, unit.id, true );
 	pair<double, const LootBox *> weapon = NearestLootbox( unit.position, unit.position, game.lootBoxes, Item::WEAPON, unit.hasWeapon?unit.weapon.type:-1 );
+	
 	pair<double, const LootBox *> health = NearestLootbox( unit.position, enemy.second->position, game.lootBoxes, Item::HEALTH_PACK );
+	if(!health.second) health = NearestLootbox( unit.position, unit.position, game.lootBoxes, Item::HEALTH_PACK );
+	
 	pair<double, const LootBox *> mine = NearestLootbox( unit.position, enemy.second->position, game.lootBoxes, Item::MINE );
 	pair<double, const Mine *> mineTrap = NearestMine( unit.position, game.mines );
+
+	pair<float, const Unit*> ally = NearestUnit( unit.position, game.units, unit.id, false );
 
 	Vec2 enemyDir = center.DirTo( enemy.second->position );
 	bool enemyVisible = RaycastLevel( center, enemyDir, GetUnitRect( *enemy.second ) ).first;
@@ -1260,13 +1275,17 @@ UnitAction Quickstart( const Unit &unit ) {
 		target = 1;
 		targetPos = health.second->position;
 	}
+	else if (mine.second && mine.first < 2) {
+		target = 5;
+		targetPos = mine.second->position;
+	}
 	else if (unit.hasWeapon && weapon.second/*&& betterWeapon*/ ) {
 		target = 2;
 		targetPos = weapon.second->position;
 	}
-	else if (mine.second && mine.first < 2) {
-		target = 5;
-		targetPos = mine.second->position;
+	else if (ally.second && ally.first < 3) {
+		target = 6;
+		targetPos.x = unit.position.x - unit.position.DirTo( ally.second->position ).x * 3;;
 	}
 	else {
 		if (enemy.first > 9) {
@@ -1281,7 +1300,7 @@ UnitAction Quickstart( const Unit &unit ) {
 				if (!Rect( 1, 1, 39, 29 ).Contains( targetPos )) {
 					targetPos.x = unit.position.x + enemyDir.x * 5;
 				}
-				targetPos.y = enemy.second->position.y + 2;
+				targetPos.y = max( unit.position.y, enemy.second->position.y + 2 );
 			}
 		}
 	}
@@ -1293,7 +1312,7 @@ UnitAction Quickstart( const Unit &unit ) {
 		action.swapWeapon = true;
 	}
 
-	DodgeRes dodge = Dodge( unit, game, 100 );
+	DodgeRes dodge = Dodge( FindUnit(unit,game.units), game, 100 );
 
 	bool shouldDodge = dodge.numSafeMoves < 9;
 
@@ -1313,8 +1332,15 @@ UnitAction Quickstart( const Unit &unit ) {
 		action.jumpDown = false;
 	}
 
-	if (enemy.first < 1.5 || (abs( enemy.second->position.x - unit.position.x ) < 2 && enemy.second->position.y < unit.position.y)/*&& unit.health > nearestEnemy->health*/) {
+	if (!action.shoot && enemy.first < 1.5 || (abs( enemy.second->position.x - unit.position.x ) < 2 && enemy.second->position.y < unit.position.y)/*&& unit.health > nearestEnemy->health*/) {
 		action.plantMine = true;
+	}
+
+	if (ally.second) {
+		bfpair allyRay = RaycastLevel( unit.position-Vec2(0,DBL_EPSILON), GetActionDir( action ), GetUnitRect( *ally.second ) );
+		bool blockedByAlly = allyRay.first && allyRay.second < 2;
+
+		if (!shouldDodge && blockedByAlly && ally.second->onGround) action.jump = true;
 	}
 
 	//action = UnitAction();
@@ -1327,7 +1353,7 @@ UnitAction Quickstart( const Unit &unit ) {
 	debug.print( "dodge: " + str( shouldDodge ) + " "+ VARDUMP( dodge.numSafeMoves) + " " + str(dodge.action) + " "+ str( dodge.maxHP ) + " " + str(dodge.minHP ) );
 	//debug.print( "enemy: " + enemy.second->toString() );
 	//debug.draw( CustomData::Log( std::string( "lastangle: " ) + std::to_string( Deg( unit.weapon.lastAngle ) ) + " " + std::to_string( Deg( unit.weapon.spread ) ) ) )
-
+	debug.drawLine( center, targetPos, 0.05, ColorFloat( 0, 1, 0, 1 ) );
 
 	DBG( DrawPath( PredictPath( unit, action, 100 ) ) );
 #endif

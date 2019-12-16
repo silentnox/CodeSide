@@ -47,7 +47,7 @@ public:
 
 	// simulator
 	int numHealed = 0;
-	int overheal = 0;
+	int overHeal = 0;
 	int lastDamage = 0;
 	bool touchUnit = false;
 

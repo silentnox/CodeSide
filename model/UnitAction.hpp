@@ -36,6 +36,10 @@ public:
 		swapWeapon = a.swapWeapon;
 		plantMine = a.plantMine;
 	}
+
+	bool IsMove() const {
+		return velocity != 0.0 || jump || jumpDown;
+	}
 	
 	static UnitAction readFrom(InputStream& stream);
     void writeTo(OutputStream& stream) const;
