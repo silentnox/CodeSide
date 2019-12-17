@@ -599,10 +599,13 @@ public:
 		vint hit = UnitsInRect( r, b.unitId );
 		vint hit2 = MinesInRect( r );
 
-		if (IsOnTile( r, WALL ) || !hit.empty() ) {
+		if ( IsOnTile( r, WALL ) || !hit.empty() || !hit2.empty() ) {
 			if (!hit.empty()) {
 				Unit & u = units[hit[0]];
 				u.health -= b.damage;
+			}
+			if (!hit2.empty()) {
+				ExplodeMine( mines[hit2[0]] );
 			}
 			if (b.explosionParams.damage) {
 				Rect expl( b.position, b.explosionParams.radius + b.size*0.5/* + explMargin*/ );
@@ -615,11 +618,7 @@ public:
 					ExplodeMine( mines[i] );
 				}
 			}
-
 			stdh::erase( bullets, b );
-		}
-		if (!hit2.empty()) {
-			ExplodeMine( mines[hit2[0]] );
 		}
 	}
 
@@ -947,10 +946,11 @@ predictRes HitPredict( const Unit & shooter, Vec2 aim, const Unit & target, bool
 		DodgeRes dodge = Dodge( checkSelf?1:0, sim );
 
 		if (draw) {
-			DBG( debug.drawLine( center, center + d * RaycastLevel( center, d ).second, 0.1, ColorFloat( 1, 1, 1, 1. - dodge.numSafeMoves / 9. ) ) );
+			DBG( debug.drawLine( center, center + d * RaycastLevel( center, d ).second, 0.05, ColorFloat( 1, 1, 1, 1. - dodge.numSafeMoves / 9. ) ) );
 		}
 
-		if (dodge.maxHP < target.health) {
+		//if (dodge.maxHP < checkSelf?shooter.health:target.health) {
+		if (dodge.numSafeMoves == 0) {
 			res.numHits++;
 		}
 		numSafeMoves += dodge.numSafeMoves;
@@ -973,6 +973,8 @@ struct actionScore {
 	double hcSelf = 0.;
 	double hcEnemy = 0.;
 	double hcAlly = 0.;
+
+	bool isStuck = false;
 
 	double minTargetDist = INFINITY;
 
@@ -997,25 +999,6 @@ enum {
 	SM_AVOID,
 	SM_SUICIDE
 };
-
-//struct Score {
-//	int healthScore;
-//	int hitOwnScore;
-//	int hitEnemyScore;
-//	int hitSelfScore;
-//	int hitAllyScore;
-//	int targetMoveScore[5];
-//	int targetDirScore[5];
-//	int heightAdvScore;
-//
-//	int GetScore( const actionScore & a, const Unit & unit, const Unit & enemy, Vec2 target, int targetType ) {
-//
-//	}
-//};
-
-//int GetScore( const actionScore & a, const Unit & unit, const Unit & enemy, Vec2 target, int targetType, int scoreMode ) {
-//
-//}
 
 void EvaluateAction( Unit & self, Unit & enemy, Sim & sim, actionScore & a, int numTicks ) {
 	for (int tick = 0; tick < numTicks; tick++) {
@@ -1052,13 +1035,13 @@ void EvaluateAction( Unit & self, Unit & enemy, Sim & sim, actionScore & a, int 
 		double hcOwn, hcSelf, hcEnemy;
 
 		if (self.hasWeapon && self.weapon.fireTimer <= 0 + DBL_EPSILON) {
-			hcOwn += HitChance( GetUnitRect( enemy ), selfCenter, dirToEnemy, self.weapon, 10 );
+			hcOwn += HitChance( GetUnitRect( enemy ), selfCenter, dirToEnemy, self.weapon, 9 );
 			if (self.weapon.params.explosion.damage) {
-				hcSelf += HitChance( GetUnitRect( self ), selfCenter, dirToEnemy, self.weapon, 6 );
+				hcSelf += HitChance( GetUnitRect( self ), selfCenter, dirToEnemy, self.weapon, 5 );
 			}
 		}
 		if (enemy.hasWeapon && enemy.weapon.fireTimer <= 0 + DBL_EPSILON) {
-			hcEnemy += HitChance( GetUnitRect( self ), enemyCenter, dirToSelf, enemy.weapon, 10 );
+			hcEnemy += HitChance( GetUnitRect( self ), enemyCenter, dirToSelf, enemy.weapon, 9 );
 		}
 		a.hcOwn += hcOwn;
 		a.hcEnemy += hcEnemy;
@@ -1077,6 +1060,8 @@ UnitAction SmartAction( const Unit &unit, const Unit & enemy, Vec2 target, int t
 
 	UnitAction targetMove = GetSimpleMove( unit, target );
 
+	double targetDist = GetCenter( unit ).Dist( target );
+
 	for (int i = 0; i < 9; i++) {
 
 		actionScore & a = actions[i];
@@ -1088,7 +1073,7 @@ UnitAction SmartAction( const Unit &unit, const Unit & enemy, Vec2 target, int t
 		sim.currentTick = 0;
 		sim.mines = game.mines;
 		sim.bullets = game.bullets;
-		sim.lootBoxes = game.lootBoxes;
+		//sim.lootBoxes = game.lootBoxes;
 		sim.units[0] = unit;
 		sim.units[1] = enemy;
 		sim.units[0].action = action;
@@ -1130,10 +1115,20 @@ UnitAction SmartAction( const Unit &unit, const Unit & enemy, Vec2 target, int t
 	}
 
 	for (actionScore & a : actions) {
-		//a.score = GetScore( a, unit, enemy, target, targetType, scoreMode );
+		a.score = 0;
+		a.score += a.health * 100;
+		if (a.targetDir) a.score += 5;
+		if (a.targetMove) a.score += 5;
+		//a.score += a.hcOwn * 2;
+		//a.score -= a.hcEnemy;
+		//a.score -= a.hcSelf;
 	}
 
 	actionScore best = stdh::best( actions, []( const actionScore & a, const actionScore & b ) { return a.score > b.score; } );
+
+#ifdef DEBUG
+
+#endif
 
 	return GetAction(best.action);
 }
@@ -1142,6 +1137,8 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 	if (!unit.hasWeapon) return UnitAction();
 
 	pair<float, const Unit*> ally = NearestUnit( unit.position, game.units, unit.id, false );
+
+	bool isStuck = game.currentTick - selfScoreTick > 250;
 
 	const double moveDelta = 10. * (1. / 60.);
 
@@ -1206,17 +1203,18 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 	if (unit.weapon.type == ROCKET_LAUNCHER) {
 		//if (hcSelf > hc) shoot = false;
 		if (hc2.hitChance < 0.15) shoot = false;
+		//if (hc2.hitChance2 > 0.4 && isStuck) shoot = true;
 		if (hcSelf2.hitChance > 0.2) shoot = false;
 		if (selfScore >= enemyScore && hc2.hitChance > 0.8 /*&& enemy.health < 50*/ ) shoot = true;
 	}
 	else if (unit.weapon.type == PISTOL) {
-		if (hc2.hitChance < 0.15) shoot = false;
+		if (hc < 0 + DBL_EPSILON) shoot = false;
 	}
 	else if (unit.weapon.type == ASSAULT_RIFLE) {
 		//if (hc2 < 0 + DBL_EPSILON) shoot = false;
 		if (hc < 0 + DBL_EPSILON) shoot = false;
 	}
-	if (hcAlly > 0.7) shoot = false;
+	if (hcAlly > 0.2) shoot = false;
 	//if (hc < 0 + DBL_EPSILON) shoot = false;
 
 #ifdef DEBUG
@@ -1249,7 +1247,7 @@ UnitAction Quickstart( const Unit &unit ) {
 	pair<double, const LootBox *> weapon = NearestLootbox( unit.position, unit.position, game.lootBoxes, Item::WEAPON, unit.hasWeapon?unit.weapon.type:-1 );
 	
 	pair<double, const LootBox *> health = NearestLootbox( unit.position, enemy.second->position, game.lootBoxes, Item::HEALTH_PACK );
-	if(!health.second) health = NearestLootbox( unit.position, unit.position, game.lootBoxes, Item::HEALTH_PACK );
+	pair<double, const LootBox *> health2 = NearestLootbox( unit.position, unit.position, game.lootBoxes, Item::HEALTH_PACK );
 	
 	pair<double, const LootBox *> mine = NearestLootbox( unit.position, enemy.second->position, game.lootBoxes, Item::MINE );
 	pair<double, const Mine *> mineTrap = NearestMine( unit.position, game.mines );
@@ -1263,7 +1261,7 @@ UnitAction Quickstart( const Unit &unit ) {
 
 	int target = -1;
 
-	bool pickHealth = health.second && unit.health < props.unitMaxHealth;
+	//bool pickHealth = health.second && unit.health < props.unitMaxHealth;
 	//bool pickHealth = health.second && unit.health <= props.unitMaxHealth - props.healthPackHealth;
 
 	Vec2 targetPos = unit.position;
@@ -1271,38 +1269,38 @@ UnitAction Quickstart( const Unit &unit ) {
 		target = 0;
 		targetPos = weapon.second->position;
 	}
-	else if (pickHealth) {
+	else if (health.second && unit.health < props.unitMaxHealth) {
 		target = 1;
 		targetPos = health.second->position;
 	}
-	else if (mine.second && mine.first < 2) {
-		target = 5;
-		targetPos = mine.second->position;
+	else if (abs( enemy.second->position.x - unit.position.x ) < 5 /*&& ( enemy.second->position.y > unit.position.y || !enemyVisible )*/) {
+		target = 4;
+		targetPos.x = unit.position.x + -enemyDir.x * 5;
+		if (!Rect( 1, 1, 39, 29 ).Contains( targetPos )) {
+			targetPos.x = unit.position.x + enemyDir.x * 5;
+		}
+		targetPos.y = max( unit.position.y, enemy.second->position.y + 5 );
 	}
+	else if (health2.second && unit.health < props.unitMaxHealth) {
+		target = 1;
+		targetPos = health2.second->position;
+	}
+	else if (ally.second && ally.first < 3) {
+		target = 6;
+		targetPos = unit.position - unit.position.DirTo( ally.second->position ) * 3;
+	}
+	//else if (mine.second && mine.first < 2) {
+	//	target = 5;
+	//	targetPos = mine.second->position;
+	//}
 	else if (unit.hasWeapon && weapon.second/*&& betterWeapon*/ ) {
 		target = 2;
 		targetPos = weapon.second->position;
 	}
-	else if (ally.second && ally.first < 3) {
-		target = 6;
-		targetPos.x = unit.position.x - unit.position.DirTo( ally.second->position ).x * 3;;
-	}
-	else {
-		if (enemy.first > 9) {
-			attack = true;
-			target = 3;
-			targetPos = enemy.second->position;
-		}
-		else {
-			if (abs( enemy.second->position.x - unit.position.x ) < 5 || enemy.second->position.y > unit.position.y || !enemyVisible) {
-				target = 4;
-				targetPos.x = unit.position.x + -enemyDir.x * 5;
-				if (!Rect( 1, 1, 39, 29 ).Contains( targetPos )) {
-					targetPos.x = unit.position.x + enemyDir.x * 5;
-				}
-				targetPos.y = max( unit.position.y, enemy.second->position.y + 2 );
-			}
-		}
+	else if (enemy.first > 9) {
+		attack = true;
+		target = 3;
+		targetPos = enemy.second->position;
 	}
 
 	UnitAction action;
@@ -1354,6 +1352,7 @@ UnitAction Quickstart( const Unit &unit ) {
 	//debug.print( "enemy: " + enemy.second->toString() );
 	//debug.draw( CustomData::Log( std::string( "lastangle: " ) + std::to_string( Deg( unit.weapon.lastAngle ) ) + " " + std::to_string( Deg( unit.weapon.spread ) ) ) )
 	debug.drawLine( center, targetPos, 0.05, ColorFloat( 0, 1, 0, 1 ) );
+	debug.drawWireRect( r, 0.05 );
 
 	DBG( DrawPath( PredictPath( unit, action, 100 ) ) );
 #endif
@@ -1397,8 +1396,14 @@ UnitAction MyStrategy::getAction(const Unit &unit, const Game & _game, Debug & _
 	InitLevel( _game, unit );
 
 	for (const Player & p : game.players) {
-		if (p.id == unit.playerId) selfScore = p.score;
-		else if (p.id != unit.playerId) enemyScore = p.score;
+		if (p.id == unit.playerId) {
+			if (p.score > selfScore) selfScoreTick = _game.currentTick;
+			selfScore = p.score;
+		}
+		else if (p.id != unit.playerId) {
+			if (p.score > enemyScore) enemyScoreTick = _game.currentTick;
+			enemyScore = p.score;
+		}
 	}
 
 	::debug = _debug;

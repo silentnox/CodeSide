@@ -2,6 +2,7 @@ import subprocess
 import sys
 import time
 import os
+import os.path
 import json
 import shutil
 
@@ -24,6 +25,11 @@ num = int(sys.argv[1])
 clname1 = str(sys.argv[2])
 clname2 = str(sys.argv[3])
 
+if len(sys.argv) == 5:
+    team_size = int(sys.argv[4])
+else:
+    team_size = 1
+
 replays = True
 
 total1 = 0
@@ -33,8 +39,13 @@ wins1 = 0
 wins2 = 0
 draws = 0
 
-config = {}
-config['options_preset'] = {'Custom': {'level':'Simple','properties':None}}
+if os.path.exists('batch_preset.json'):
+    config = load_json('batch_preset.json')
+    config['options_preset']['Custom']['properties']['team_size'] = team_size
+else:
+    config = {}
+    config['options_preset'] = {'Custom': {'level': 'Simple', 'properties': None}}
+
 config['players'] = []
 
 if clname1.lower() != 'quickstart':

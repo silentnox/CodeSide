@@ -25,6 +25,6 @@ void Debug::drawWireRect( Rect rect, double width, ColorFloat color )
 	drawLine( rect.Min, Vec2( rect.Min.x, rect.Max.y ), width, color );
 	drawLine( rect.Min, Vec2( rect.Max.x, rect.Min.y ), width, color );
 	drawLine( rect.Max, Vec2( rect.Min.x, rect.Max.y ), width, color );
-	drawLine( rect.Max, Vec2( rect.Min.x, rect.Max.y ), width, color );
+	drawLine( rect.Max, Vec2( rect.Max.x, rect.Min.y ), width, color );
 }
 
