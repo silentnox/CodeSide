@@ -5,6 +5,7 @@ import os
 import os.path
 import json
 import shutil
+import random
 
 
 def load_json( name ):
@@ -16,6 +17,11 @@ def load_json( name ):
 def write_json( name, data ):
     with open(name,'wt+') as json_file:
         json_file.write(json.dumps(data))
+
+def config_set_seed( seed ):
+    config = load_json('batch_config.json')
+    config['options_preset']['Custom']['seed'] = seed
+    write_json('batch_config.json',config)
 
 
 if len(sys.argv) < 4:
@@ -42,6 +48,7 @@ draws = 0
 if os.path.exists('batch_preset.json'):
     config = load_json('batch_preset.json')
     config['options_preset']['Custom']['properties']['team_size'] = team_size
+    config['options_preset']['Custom']['properties']['max_tick_count'] = 1200
 else:
     config = {}
     config['options_preset'] = {'Custom': {'level': 'Simple', 'properties': None}}

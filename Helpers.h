@@ -47,6 +47,15 @@ std::string str( const T & in ) {
 }
 
 template <>
+inline std::string str( const double & in ) {
+	std::ostringstream out;
+	out.precision( 2 );
+	out << std::fixed << in;
+	return out.str();
+}
+
+
+template <>
 inline std::string str( const bool & in ) {
 	return in?"true":"false";
 }
@@ -56,7 +65,7 @@ inline std::string str( const std::string & in ) {
 	return in;
 }
 
-#define VARDUMP(var) (#var": " + str(var))
+#define VARDUMP(var) (" "#var": " + str(var))
 
 inline double Sqr( double d ) {
 	return d * d;
@@ -287,6 +296,7 @@ typedef std::chrono::microseconds Microsec;
 
 class Timer {
 	HrcTimePoint Start;
+	HrcTimePoint end;
 	long long TotalMicro = 0;
 	bool Active = false;
 public:
@@ -299,6 +309,7 @@ public:
 		Active = true;
 	}
 	inline void End() {
+		end = Hrc::now();
 		TotalMicro += GetMicrosec();
 		Active = false;
 	}
@@ -309,7 +320,7 @@ public:
 		TotalMicro = 0;
 	}
 	inline long long GetMsec() const {
-		return std::chrono::duration_cast<Msec>(Hrc::now() - Start).count();
+		return std::chrono::duration_cast<Msec>(end - Start).count();
 	}
 	inline long long GetMicrosec() const {
 		return std::chrono::duration_cast<Microsec>(Hrc::now() - Start).count();
@@ -335,14 +346,14 @@ public:
 		Time = clock();
 	}
 	inline void End() {
-		TimeEnd = clock() - Time;
-		Total += TimeEnd;
+		TimeEnd = clock();
+		Total += TimeEnd - Time;
 	}
 	inline void Reset() {
 		Total = 0;
 	}
 	inline long GetMsec() const {
-		return ((double)(Time - TimeEnd) / CLOCKS_PER_SEC) * 1000;
+		return ((double)(TimeEnd - Time) / CLOCKS_PER_SEC) * 1000;
 	}
 	inline long GetTotalMsec() const {
 		return ((double)Total / CLOCKS_PER_SEC) * 1000;
