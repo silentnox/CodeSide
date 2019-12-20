@@ -66,6 +66,7 @@ inline std::string str( const std::string & in ) {
 }
 
 #define VARDUMP(var) (" "#var": " + str(var))
+#define VARDUMP2(name,var) (" "#name": " + str(var))
 
 inline double Sqr( double d ) {
 	return d * d;
