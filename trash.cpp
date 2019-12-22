@@ -1,4 +1,294 @@
 
+//
+//struct actionScore {
+//	int action = 0;
+//	int health = 0;
+//	Vec2 finalPos;
+//	Unit finalState;
+//
+//	Vec2 enemyPos;
+//
+//	int hitTick = -1;
+//
+//	int floatTicks = 0;
+//
+//	bool enemyVisible = false;
+//	double enemyDist = 0;
+//
+//	double hcOwn = 0.;
+//	double hcSelf = 0.;
+//	double hcEnemy = 0.;
+//	double hcAlly = 0.;
+//
+//	bool isStuck = false;
+//
+//	double minTargetDist = INFINITY;
+//	double minEnemyDist = INFINITY;
+//
+//	bool targetDir = false;
+//	bool targetMove = false;
+//
+//	predictRes pred1, pred2;
+//
+//	double score = 0;
+//	int ticks = 0;
+//};
+//
+//enum {
+//	TG_ENEMY,
+//	TG_HEALTH,
+//	TG_HEALTH2,
+//	TG_WEAPON,
+//	TG_WEAPON2,
+//	TG_MINE,
+//	TG_ALLY //???
+//};
+//
+//enum {
+//	SM_ATTACK,
+//	SM_DODGE,
+//	SM_AVOID,
+//	SM_SUICIDE
+//};
+//
+//UnitAction SmartAction( const Unit &unit, const Unit & en, Vec2 target, int targetType, int scoreMode ) {
+//
+//	array<actionScore, 9> actions;
+//
+//	Sim sim( 5 );
+//	sim.units.resize( 2 );
+//
+//	const int numTicks = 45;
+//
+//	UnitAction targetMove = GetSimpleMove( unit, target );
+//	Vec2 targetMoveDir = GetActionDir( targetMove );
+//
+//	predictRes hcEnemy = en.hasWeapon && !isnan( en.weapon.lastAngle ) ? HitPredict( en, Vec2( 1, 0 ).Rotate( en.weapon.lastAngle ), unit, false, 11, true ) : predictRes();
+//
+//	bool enemyVisible = RaycastLevel( GetCenter( unit ), unit.position.DirTo( en.position ), GetUnitRect( en ) ).first;
+//
+//	for (int i = 0; i < 9; i++) {
+//
+//		actionScore & a = actions[i];
+//
+//		a.action = i;
+//
+//		UnitAction action = GetAction( i );
+//
+//		sim.currentTick = 0;
+//		sim.mines = game.mines;
+//		sim.bullets = game.bullets;
+//		//sim.lootBoxes = game.lootBoxes;
+//		//sim.units[0] = unit;
+//		//sim.units[1] = enemy;
+//		//sim.units[0].action = action;
+//
+//		sim.units = game.units;
+//
+//		//sim.units[1].action = GetSimpleMove( enemy, unit.position );
+//
+//		//sim.units[0].action.swapWeapon = true;
+//
+//		sim.useAim = true;
+//
+//		//sim.units[0].action.shoot = true;
+//		//sim.units[1].action.shoot = true;
+//
+//		//Unit & self = sim.units[0];
+//		//Unit & enemy = sim.units[1];
+//		Unit & self = sim.units[FindUnit( unit, sim.units )];
+//		Unit & enemy = sim.units[FindUnit( en, sim.units )];
+//
+//		self.action = action;
+//
+//		//EvaluateAction( self, enemy, sim, a, numTicks );
+//		vector<Vec2> path;
+//		for (int tick = 0; tick < numTicks; tick++) {
+//
+//			if (self.health <= 0) break;
+//
+//			if (!sim.bullets.empty()) {
+//				sim.SetQuality( 100 );
+//			}
+//			else {
+//				sim.SetQuality( 5 );
+//			}
+//
+//			Vec2 dirToEnemy = self.position.DirTo( enemy.position );
+//			Vec2 dirToSelf = enemy.position.DirTo( self.position );
+//			self.action.aim = dirToEnemy;
+//			//enemy.action = GetSimpleMove( enemy, self.position );
+//			enemy.action.aim = dirToSelf;
+//
+//			//if (!enemy.onGround && enemy.jumpState.maxTime > 0) enemy.action.jump = true;
+//			if (enemy.position.y < self.position.y) enemy.action.jump = true;
+//			enemy.action.jumpDown = !enemy.action.jump;
+//
+//			int hp = self.health;
+//
+//			sim.Tick();
+//
+//			DBG( path.emplace_back( self.position ) );
+//
+//			if (self.health < hp && a.hitTick == -1) {
+//				a.hitTick = tick;
+//			}
+//
+//			bool isFloat = !self.onGround && (self.jumpState.maxTime < 1e-5 || !self.jumpState.canCancel);
+//
+//			if (isFloat) a.floatTicks++;
+//
+//			Vec2 selfCenter = self.position + Vec2( 0, 0.9 );
+//			Vec2 enemyCenter = enemy.position + Vec2( 0, 0.9 );
+//			Rect r = GetUnitRect( self );
+//			Rect er = GetUnitRect( enemy );
+//
+//			//Vec2 center = GetUnitRect( self ).Center();
+//			double targetDist = selfCenter.Dist2( target );
+//			double enemyDist = selfCenter.Dist2( enemy.position );
+//
+//			if (Sqr( RaycastLevel( selfCenter, selfCenter.DirTo( target ) ).second ) < Sqr( targetDist ) && a.minTargetDist > targetDist) {
+//				actions[i].minTargetDist = targetDist;
+//			}
+//			if (a.minEnemyDist > enemyDist) a.minEnemyDist = enemyDist;
+//
+//			double hcOwn = 0, hcSelf = 0, hcEnemy = 0;
+//
+//			if (sim.currentTick % 2 == 0) {
+//				if (self.hasWeapon && self.weapon.fireTimer <= 0 + DBL_EPSILON) {
+//					hcOwn = HitChance( er, selfCenter, dirToEnemy, self.weapon, 9 );
+//					if (self.weapon.params.explosion.damage) {
+//						hcSelf = HitChance( r, selfCenter, dirToEnemy, self.weapon, 5 );
+//						if (selfCenter.Dist( enemyCenter ) - r.MaxRadius() * 2 < self.weapon.params.explosion.radius) {
+//							hcSelf = 1.0;
+//						}
+//					}
+//				}
+//				if (enemy.hasWeapon && enemy.weapon.fireTimer <= 0 + DBL_EPSILON) {
+//					hcEnemy = HitChance( r, enemyCenter, dirToSelf, enemy.weapon, 11 );
+//					if (isFloat) hcEnemy = min( hcEnemy*1.2, 1.0 );
+//				}
+//			}
+//
+//			double maxDist = 40.;
+//			enemyDist = sqrt( enemyDist );
+//
+//			a.hcOwn += hcOwn;
+//			a.hcEnemy += hcEnemy;
+//			a.hcSelf += hcOwn > 0 ? hcSelf : 0;
+//			//a.hcOwn = max(hcOwn,a.hcOwn);
+//			//a.hcEnemy = max( hcEnemy, a.hcEnemy );
+//			//a.hcSelf = (hcOwn>0)?max(hcSelf,a.hcSelf):0;
+//
+//			//a.hcOwn *= 1 - enemyDist / maxDist;
+//			//a.hcEnemy *= 1 - enemyDist / maxDist;
+//			//a.hcSelf *=  1 - enemyDist / maxDist;
+//		}
+//
+//		DBG( DrawPath( path ) );
+//		DBG( debug.draw( CustomData::PlacedText( str( a.action ), path.back(), TextAlignment::LEFT, 20, ColorFloat( 0, 1, 0, 1 ) ) ); )
+//
+//			int tick = sim.currentTick / 2;
+//
+//		a.health = self.health;
+//		a.hcOwn /= tick;
+//		a.hcSelf /= tick;
+//		a.hcEnemy /= tick;
+//
+//		a.finalState = self;
+//
+//		Vec2 dir = GetActionDir( action );
+//
+//		a.targetDir = targetMoveDir.Dot( dir ) > 0.5;
+//		a.targetMove = targetMoveDir == dir;
+//
+//		a.finalPos = self.position;
+//		a.enemyPos = enemy.position;
+//
+//		Rect selfRect = GetUnitRect( self );
+//		Rect enemyRect = GetUnitRect( enemy );
+//		Vec2 center = GetCenter( self );
+//		Vec2 enemyCenter = GetCenter( enemy );
+//
+//		a.enemyVisible = RaycastLevel( center, center.DirTo( enemyCenter ), enemyRect ).first;
+//		a.enemyDist = center.Dist( enemyCenter );
+//
+//		//a.pred1 = HitPredict( enemy, enemyCenter.DirTo( center ), self, false, 7 );
+//		//a.pred2 = HitPredict( self, center.DirTo( enemyCenter ), enemy, false, 7 );
+//
+//		//a.minTargetDist = sqrt( a.minTargetDist );
+//
+//		a.ticks = sim.currentTick;
+//	}
+//
+//	for (actionScore & a : actions) {
+//		a.score = 0;
+//		a.score += a.health * 100;
+//		int targetScore = 5;
+//
+//		double edgeDist = min( a.finalPos.x, 40 - a.finalPos.x );
+//		double wallDist1 = RaycastLevel( a.finalPos + Vec2( 0, 0.9 ), Vec2( 1, 0 ) ).second;
+//		double wallDist2 = RaycastLevel( a.finalPos + Vec2( 0, 0.9 ), Vec2( -1, 0 ) ).second;
+//		double wallDist = min( wallDist1, wallDist2 );
+//
+//		if (targetType == TG_HEALTH) targetScore = 20;
+//		else if (targetType == TG_HEALTH2) targetScore = 5;
+//		else if (targetType == TG_ENEMY) targetScore = 1;
+//		else if (targetType == TG_WEAPON) targetScore = 20;
+//		else if (targetType == TG_WEAPON2) targetScore = 10;
+//
+//		if (targetType == TG_ENEMY && !enemyVisible && a.enemyDist > 9) targetScore = 20;
+//
+//		if (a.targetDir) a.score += targetScore;
+//		if (a.targetMove) a.score += targetScore;
+//
+//		//a.score += a.hcOwn * (!isStuck?5:20);
+//		//a.score -= a.hcEnemy * (hcEnemy.hitChance > 0?15:5);
+//		//a.score -= a.hcSelf * (!isStuck ? 8 : 20);
+//		a.score += a.hcOwn * 15;
+//		//a.score -= a.hcEnemy * (hcEnemy.hitChance > 0?50:20);
+//		a.score -= a.hcSelf * 10;
+//
+//		a.score += a.enemyDist;
+//
+//		if (a.minEnemyDist < 3) a.score -= 50;
+//
+//		if (a.finalPos.y < a.enemyPos.y) a.score -= 30;
+//		if (edgeDist < 7) a.score -= 10;
+//		//if (a.floatTicks) a.score -= 20;
+//	}
+//
+//	actionScore best = stdh::best( actions, []( const actionScore & a, const actionScore & b ) { return a.score > b.score; } );
+//	//actionScore best = stdh::best( actions, []( const actionScore & a, const actionScore & b ) { return a.hcEnemy < b.hcEnemy; } );
+//	actionScore worst = stdh::best( actions, []( const actionScore & a, const actionScore & b ) { return a.score < b.score; } );
+//	//actionScore worst = stdh::best( actions, []( const actionScore & a, const actionScore & b ) { return a.hcEnemy > b.hcEnemy; } );
+//
+//#ifdef DEBUG
+//	for (actionScore & a : actions) {
+//		Vec2 dbgDir = GetActionDir( GetAction( a.action ) );
+//		Vec2 dbgEndPos = GetCenter( unit ) + dbgDir * 3;
+//		double f = (a.score - worst.score) / (double)(best.score - worst.score);
+//		if (a.score == best.score) {
+//			debug.drawLine( GetCenter( unit ), dbgEndPos, 0.1, ColorFloat( 1, 0, 0, 1 ) );
+//		}
+//		else {
+//			debug.drawLine( GetCenter( unit ), dbgEndPos, 0.1, ColorFloat( 1, 1, 1, f ) );
+//		}
+//		debug.draw( CustomData::PlacedText( str( f ), Vec2Float( dbgEndPos.x, dbgEndPos.y ), TextAlignment::CENTER, 15, ColorFloat( 1, 1, 1, 1 ) ) );
+//		debug.draw( CustomData::PlacedText( str( a.action ) + ": " + VARDUMP( a.score ) + VARDUMP( a.health ) + VARDUMP( a.hcOwn ) + VARDUMP( a.hcEnemy ) + VARDUMP( a.hcSelf ), Vec2Float( 43, 27 - a.action * 1 ), TextAlignment::RIGHT, 14, ColorFloat( 1, 1, 1, 1 ) ) );
+//		//debug.draw( CustomData::PlacedText( str(a.action) + ": " + VARDUMP( a.score ) + VARDUMP( a.health ) + VARDUMP( a.pred1.hitChance2 ) + VARDUMP( a.pred2.hitChance2 ), Vec2Float(43,27 - a.action * 1), TextAlignment::RIGHT, 14, ColorFloat( 1, 1, 1, 1 ) ) );
+//		//DrawPath( PredictPath2( unit, GetAction( a.action ), 60, game.units ) );
+//	}
+//	debug.print( VARDUMP( hcEnemy.hitChance ) + " " + VARDUMP2( "FireTimer", en.weapon.fireTimer ) + VARDUMP( isStuck ) );
+//	//debug.drawLine( center, center + GetActionDir( targetMove ) * 3, 0.1, ColorFloat( 0, 1, 1, 1 ) );
+//	debug.print( "Smart: " + VARDUMP( best.score ) + VARDUMP( best.health ) + VARDUMP( best.hcOwn ) + VARDUMP( best.hcEnemy ) + VARDUMP( best.hcSelf ) + VARDUMP( best.floatTicks ) );
+//	//EstimateReach( unit, target, true );
+//#endif
+//
+//	return GetAction( best.action );
+//}
+
+
 //UnitAction ShootingHelper( const Unit &unit, const UnitAction & a, const Unit & enemy, const Game &game, Debug &debug ) {
 //	if (!unit.weapon) return UnitAction();
 //

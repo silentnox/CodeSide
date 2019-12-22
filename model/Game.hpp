@@ -94,7 +94,7 @@
 
 class Game {
 public:
-    int currentTick;
+    int currentTick = -1;
     Properties properties;
     Level level;
     std::vector<Player> players;
