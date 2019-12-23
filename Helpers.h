@@ -841,6 +841,9 @@ public:
 			return bfpair( true, std::max( t0x, t0y ) );
 		}
 	}
+	inline Vec2 Size() const {
+		return Max - Min;
+	}
 	inline Vec2 Center() const {
 		return Min + (Max - Min)*0.5;
 	}

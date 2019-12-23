@@ -20,6 +20,11 @@ void Debug::drawLine( Vec2 from, Vec2 to, double width, ColorFloat color )
 	draw( CustomData::Line( from, to, width, color ) );
 }
 
+void Debug::drawRect( Rect rect, ColorFloat color )
+{
+	draw( CustomData::Rect( rect.Min, rect.Size(), color ) );
+}
+
 void Debug::drawWireRect( Rect rect, double width, ColorFloat color )
 {
 	drawLine( rect.Min, Vec2( rect.Min.x, rect.Max.y ), width, color );
