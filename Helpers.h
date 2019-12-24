@@ -78,8 +78,11 @@ inline double Sign( double d, double eps = 0. ) {
 
 // from -PI to PI
 inline double AngleDiff( double a, double b ) {
-	double diff = abs( a - b );
-	return diff > M_PI ? diff - M_PI : diff;
+	double diff = b - a;
+	//return diff > M_PI ? diff - M_PI : diff;
+	if (diff > M_PI) return 2 * M_PI - diff;
+	if (diff < -M_PI) return 2 * M_PI + diff;
+	return diff;
 }
 
 #undef min
@@ -1072,6 +1075,7 @@ public:
 			q.pop_front();
 
 			const int nb[] = { u - 1,u + 1,u - WIDTH,u + WIDTH };
+			//const int nb[] = { u - 1,u + 1,u - WIDTH,u + WIDTH, u - 1 - WIDTH,u + 1 - WIDTH,u - 1 + WIDTH,u + 1 + WIDTH };
 
 			for (int v : nb) {
 				if (visited[v]) continue;
