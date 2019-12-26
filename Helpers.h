@@ -32,6 +32,7 @@
 #include <math.h>
 #include <float.h>
 #include <time.h>
+#include <cstring>
 
 #ifndef FLT_EPSILON
 #	define FLT_EPSILON 1.192092896e-07F 
@@ -1064,7 +1065,7 @@ public:
 
 		bool visited[NUM_CELLS];
 
-		memset( visited, false, sizeof( visited ) );
+		std::memset( visited, false, sizeof( visited ) );
 
 		visited[index] = true;
 		dist[index] = 0;

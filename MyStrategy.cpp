@@ -13,6 +13,65 @@ using namespace std;
 
 MyStrategy::MyStrategy() {}
 
+struct Persist {
+	int lastDamaged = -1;
+	int lastTarget = -1;
+};
+map<int, Persist> persist;
+
+Properties props;
+Level level;
+
+Debug debug;
+Game game, prevGame;
+
+int selfPlayer;
+bool mode2x2;
+
+int selfScore = 0, enemyScore = 0;
+int selfScoreTick = 0, enemyScoreTick = 0;
+bool isStuck = false;
+
+Tile Tiles[40][30];
+Rect TileRects[40][30];
+std::vector<Rect> TilesByType[5];
+
+inline Rect GetUnitRect( const Unit & u ) {
+	return Rect( Vec2( u.position.x - u.size.x * 0.5, u.position.y ), Vec2( u.position.x + u.size.x * 0.5, u.position.y + u.size.y ) );
+}
+
+inline Rect GetUnitRect( const Vec2 p ) {
+	return Rect( Vec2( p.x - props.unitSize.x * 0.5, p.y ), Vec2( p.x + props.unitSize.x * 0.5, p.y + props.unitSize.y ) );
+}
+
+template <typename Item>
+inline Rect GetRect( const Item & item ) {
+	return Rect( Vec2( item.position.x - item.size.x * 0.5, item.position.y ), Vec2( item.position.x + item.size.x * 0.5, item.position.y + item.size.y ) );
+}
+
+template <typename Item>
+inline Vec2 GetCenter( const Item & item ) {
+	return item.position + Vec2( 0, item.size.y*0.5 );
+}
+
+inline bool IsOnTile( const Rect & rect, Tile tile ) {
+	int minx = (int)floor( rect.Min.x );
+	int miny = (int)floor( rect.Min.y );
+	int maxx = (int)floor( rect.Max.x );
+	int maxy = (int)floor( rect.Max.y );
+	for (int i = minx; i <= maxx; i++) {
+		for (int j = miny; j <= maxy; j++) {
+			if (Tiles[i][j] == tile && TileRects[i][j].Intersects( rect )) return true;
+		}
+	}
+	return false;
+}
+
+inline Tile GetTileAt( const Vec2 & p ) {
+	int x = (int)floor( p.x );
+	int y = (int)floor( p.y );
+	return Tiles[x][y];
+}
 
 inline UnitAction GetAction( int dir ) {
 	//UnitAction(double velocity, bool jump, bool jumpDown, Vec2Double aim, bool shoot, bool reload, bool swapWeapon, bool plantMine);
@@ -67,6 +126,29 @@ int GetActionIndex( const UnitAction & a ) {
 	return -1;
 }
 
+UnitAction GetSimpleMove( const Unit & u, Vec2 target ) {
+	static const double moveDelta = 10. * (1. / 60.);
+	UnitAction action;
+	Rect r = GetUnitRect( u );
+	bool blockedLeft = IsOnTile( r + Vec2( -moveDelta, 0 ), WALL );
+	bool blockedRight = IsOnTile( r + Vec2( moveDelta, 0 ), WALL );
+
+	action.jump = target.y > u.position.y + u.size.y*0.5;
+	action.jumpDown = target.y < u.position.y;
+	if (target.x > u.position.x && blockedRight) action.jump = true;
+	if (target.x < u.position.x && blockedLeft) action.jump = true;
+
+	//action.jumpDown = !action.jump;
+
+	if (abs( target.x - u.position.x ) < 1. && target.y < u.position.y) {
+		action.jump = false;
+		action.jumpDown = true;
+	}
+
+	action.velocity = Sign( target.x - u.position.x, 0.1 ) * props.unitMaxHorizontalSpeed;
+	return action;
+}
+
 
 int WeapScore( WeaponType weap ) {
 	switch (weap) {
@@ -85,64 +167,25 @@ bool IsBetterWeapon( WeaponType current, WeaponType newweapon ) {
 	return WeapScore( newweapon ) > WeapScore( current );
 }
 
-struct Persist {
-	int lastDamaged = -1;
-	int lastTarget = -1;
-};
-map<int, Persist> persist;
+bfpair RaycastLevel( Vec2 from, Vec2 dir, Rect target = Rect( 0, 0, 0, 0 ) ) {
+	//assert( dir.Len() < 1.0 + DBL_EPSILON );
 
-Properties props;
-Level level;
-
-Debug debug;
-Game game,prevGame;
-
-int selfPlayer;
-bool mode2x2;
-
-int selfScore = 0, enemyScore = 0;
-int selfScoreTick = 0, enemyScoreTick = 0;
-bool isStuck = false;
-
-Tile Tiles[40][30];
-Rect TileRects[40][30];
-std::vector<Rect> TilesByType[5];
-
-inline Rect GetUnitRect( const Unit & u ) {
-	return Rect( Vec2( u.position.x - u.size.x * 0.5, u.position.y ), Vec2( u.position.x + u.size.x * 0.5, u.position.y + u.size.y ) );
-}
-
-inline Rect GetUnitRect( const Vec2 p ) {
-	return Rect( Vec2( p.x - props.unitSize.x * 0.5, p.y ), Vec2( p.x + props.unitSize.x * 0.5, p.y + props.unitSize.y ) );
-}
-
-template <typename Item>
-inline Rect GetRect( const Item & item ) {
-	return Rect( Vec2( item.position.x - item.size.x * 0.5, item.position.y ), Vec2( item.position.x + item.size.x * 0.5, item.position.y + item.size.y ) );
-}
-
-template <typename Item>
-inline Vec2 GetCenter( const Item & item ) {
-	return item.position + Vec2(0,item.size.y*0.5);
-}
-
-inline bool IsOnTile( const Rect & rect, Tile tile ) {
-	int minx = (int)floor( rect.Min.x );
-	int miny = (int)floor( rect.Min.y );
-	int maxx = (int)floor( rect.Max.x );
-	int maxy = (int)floor( rect.Max.y );
-	for (int i = minx; i <= maxx; i++) {
-		for (int j = miny; j <= maxy; j++) {
-			if (Tiles[i][j] == tile && TileRects[i][j].Intersects( rect )) return true;
+	double mindist = DBL_MAX;
+	for (const Rect & r : TilesByType[WALL]) {
+		bfpair res = r.Raycast( from, dir );
+		if (res.first) {
+			if (res.second < mindist) {
+				mindist = res.second;
+			}
 		}
 	}
-	return false;
-}
-
-inline Tile GetTileAt( const Vec2 & p ) {
-	int x = (int)floor( p.x );
-	int y = (int)floor( p.y );
-	return Tiles[x][y];
+	if (!target.IsZero()) {
+		bfpair res = target.Raycast( from, dir );
+		if (res.first && res.second < mindist) {
+			return bfpair( true, res.second );
+		}
+	}
+	return bfpair( false, mindist );
 }
 
 
@@ -176,20 +219,32 @@ public:
 				}
 				if(t == Tile::WALL || t == Tile::PLATFORM) {
 					int h = 1;
-					while (Tiles[i][j + h] == Tile::EMPTY) {
-						if (j + h > 29) break;
+					int o = j;
+					while (Tiles[i][o + h] == Tile::EMPTY) {
+						if (o + h > 29) break;
 						if (h > 6) {
-							bfs[Tid( i, j + h )] = 1;
+							bfs[Tid( i, o + h )] = 1;
+							o += h;
 							h = 1;
 						}
 						h++;
 					}
 				}
 				if (t == Tile::LADDER) {
-					if(Tiles[i-1][j] == PLATFORM) bfs[Tid( i-1, j )] = 1;
-					if(Tiles[i+1][j] == PLATFORM) bfs[Tid( i+1, j )] = 1;
+					//bfs[Tid( i - 1, j )] = 1;
+					//bfs[Tid( i + 1, j )] = 1;
+					if (Tiles[i - 1][j] == PLATFORM) {
+						bfs[Tid( i - 1, j )] = 1;
+						bfs[Tid( i - 1, j-1 )] = 1;
+						bfs[Tid( i - 1, j-2 )] = 1;
+					}
+					if (Tiles[i + 1][j] == PLATFORM) {
+						bfs[Tid( i + 1, j )] = 1;
+						bfs[Tid( i + 1, j-1 )] = 1;
+						bfs[Tid( i + 1, j-2 )] = 1;
+					}
 				}
-				if(t == Tile::JUMP_PAD) bfs[Tid( i, j )] = 1;
+				//if(t == Tile::JUMP_PAD) bfs[Tid( i, j )] = 1;
 			}
 		}
 	}
@@ -204,7 +259,7 @@ public:
 
 		for (int i = 0; i < 40; i++) {
 			for (int j = 0; j < 30; j++) {
-				if (bfs[Tid(i,j)]) debug.drawRect( TileRects[i][j], ColorFloat( 1, 0, 0, 0.2 ) );
+				if (bfs[Tid(i,j)]) debug.drawRect( TileRects[i][j], ColorFloat( 1, 0, 0, 0.1 ) );
 			}
 		}
 	}
@@ -212,6 +267,8 @@ public:
 	pair<int, UnitAction> FindPath( Vec2 target, bool draw = false ) {
 		static const double moveDelta = 10. * (1. / 60.);
 		if (!Rect( 0, 0, 40, 30 ).Contains( target )) return pair<int, UnitAction>( -1, UnitAction() );
+
+		//if (target.y < origin.y && RaycastLevel( origin, origin.DirTo( target ) ).second > origin.Dist( target )) return pair<int, UnitAction>( 1, GetMoveAction( origin.DirTo( target ) ) );
 
 		int id = Tid( (int)floor( target.x ), (int)floor( target.y ) );
 		Tile tile = GetTileAt( target );
@@ -227,58 +284,6 @@ public:
 		int ox = node2.first - node1.first;
 		int oy = node2.second - node1.second;
 
-		////this to find nearest ladder or jumper in case height is tooo big
-		//int height = 1;
-		////while (Tiles[node1.first][node1.second + height] == Tile::EMPTY && node1.second + height < 29) height++;
-		//ipair prev = Tcd( path[0] );
-		//for (int v : path) {
-		//	ipair c = Tcd( v );
-		//	if (Tiles[c.first][c.second] != EMPTY) break;
-		//	if (c.first == prev.first && c.second > prev.second) {
-		//		height++;
-		//	}
-		//	else {
-		//		height = 1;
-		//	}
-		//	if (height > 6) break;
-		//	prev = c;
-		//}
-		//if (height > 6) {
-		//	int loj1 = 0, loj2 = 0;
-		//	Tile t1, t2;
-		//	bool f1 = false, f2 = false;
-		//	while (node1.first - loj1 > 1) {
-		//		t1 = Tiles[node1.first - loj1][node1.second];
-		//		if (t1 == Tile::WALL) break;
-		//		if (t1 == Tile::JUMP_PAD || t1 == Tile::LADDER) {
-		//			f1 = true;
-		//			break;
-		//		}
-		//		loj1++;
-		//	}
-		//	while (node1.first + loj2 < 39) {
-		//		t2 = Tiles[node1.first + loj2][node1.second];
-		//		if (t2 == Tile::WALL) break;
-		//		if (t2 == Tile::JUMP_PAD || t2 == Tile::LADDER) {
-		//			f2 = true;			
-		//			break;
-		//		}
-		//		loj2++;
-		//	}
-		//	if (f1 && f2) {
-		//		ox = loj1 < loj2 ? -1 : 1;
-		//		if (loj1 == loj2 && loj1 == 0) ox = 0;
-		//	}
-		//	else {
-		//		if (f1) ox = -1;
-		//		else if (f2) ox = 1;
-		//	}
-		//	if (ox != 0) oy = 0;
-		//	if (tile == LADDER) {
-		//		ox = 0;
-		//	}
-		//}
-
 		if (ox > 0) action.velocity = 10;
 		else if (ox < 0) action.velocity = -10;
 		else if (ox == 0) action.velocity = 0;
@@ -286,11 +291,26 @@ public:
 		if (oy > 0) action.jump = true;
 		else if (oy < 0) action.jumpDown = true;
 
-		Rect r = TileRects[node1.first][node1.second];
-		double snap = r.Center().x - origin.x;
-
-		if ((action.jump || action.jumpDown) && abs( snap ) > 0.05) {
-			action.velocity = Sign( snap ) * 10;
+		if (oy != 0) {
+			int n = 0;
+			while (n < path.size() - 1 && Tcd( path[n] ).first == node1.first) {
+				n++;
+			}
+			ipair node = Tcd( path[n] );
+			//Rect r = TileRects[node.first][node.second];
+			//double snap = r.Center().x - origin.x;
+			//if (abs( snap ) > 0.5+0.5) {
+			//	action.velocity = Sign( snap ) * 10;
+			//}
+			Rect r = TileRects[node1.first][node1.second];
+			double snap = r.Center().x - origin.x;
+			if (abs( snap ) > 0) {
+				action.velocity = Sign( snap ) * 10;
+			}
+			if(node.first > node1.first && GetTileAt(origin+Vec2(1,0)) == WALL) action.velocity = 10;
+			if(node.first < node1.first && GetTileAt(origin+Vec2(-1,0)) == WALL) action.velocity = -10;
+			if(oy < 0 && ( GetTileAt(origin+Vec2(0.1,-1)) == JUMP_PAD || GetTileAt( origin + Vec2( 0.1, 0 ) ) == JUMP_PAD) ) action.velocity = -10;
+			if(oy < 0 && (GetTileAt( origin + Vec2( -0.1, -1 ) ) == JUMP_PAD || GetTileAt( origin + Vec2( -0.1, 0 ) ) == JUMP_PAD)) action.velocity = 10;
 		}
 
 #ifdef  DEBUG
@@ -426,27 +446,6 @@ bfpair TraceRect( Rect r, Vec2 dir, Rect target = Rect( 0, 0, 0, 0 ) ) {
 		offset += delta;
 	}
 	return bfpair(false,offset);
-}
-
-bfpair RaycastLevel( Vec2 from, Vec2 dir, Rect target = Rect( 0, 0, 0, 0 ) ) {
-	//assert( dir.Len() < 1.0 + DBL_EPSILON );
-
-	double mindist = DBL_MAX;
-	for (const Rect & r : TilesByType[WALL]) {
-		bfpair res = r.Raycast( from, dir );
-		if (res.first) {
-			if (res.second < mindist) {
-				mindist = res.second;
-			}
-		}
-	}
-	if (!target.IsZero()) {
-		bfpair res = target.Raycast( from, dir );
-		if (res.first && res.second < mindist) {
-			return bfpair( true, res.second );
-		}
-	}
-	return bfpair(false,mindist);
 }
 
 double HitChance( Rect target, Vec2 from, Vec2 dir, const Weapon & weapon, int numRays = 30 ) {
@@ -945,29 +944,6 @@ void DrawPath( const vector<Vec2> & path, const ColorFloat color = ColorFloat(1,
 	}
 }
 
-UnitAction GetSimpleMove( const Unit & u, Vec2 target ) {
-	static const double moveDelta = 10. * (1. / 60.);
-	UnitAction action;
-	Rect r = GetUnitRect( u );
-	bool blockedLeft = IsOnTile( r + Vec2( -moveDelta, 0 ), WALL );
-	bool blockedRight = IsOnTile( r + Vec2( moveDelta, 0 ), WALL );
-
-	action.jump = target.y > u.position.y + u.size.y*0.5;
-	action.jumpDown = target.y < u.position.y;
-	if (target.x > u.position.x && blockedRight) action.jump = true;
-	if (target.x < u.position.x && blockedLeft) action.jump = true;
-	
-	//action.jumpDown = !action.jump;
-
-	if (abs( target.x - u.position.x ) < 1. && target.y < u.position.y) {
-		action.jump = false;
-		action.jumpDown = true;
-	}
-
-	action.velocity = Sign( target.x - u.position.x, 0.1 ) * props.unitMaxHorizontalSpeed;
-	return action;
-}
-
 pair<int, UnitAction> EstimateReach( const Unit & u, Vec2 target, bool draw = false ) {
 	Sim sim( 1 );
 	int num = 0;
@@ -1033,7 +1009,7 @@ DodgeRes Dodge( int idx, const Sim & env, int quality = 5 ) {
 		sim.units = env.units;
 		//sim.units[0] = unit;
 
-		sim.pierce = true;
+		//sim.pierce = true;
 
 		sim.units[idx].action = GetAction( i );
 
@@ -1043,15 +1019,16 @@ DodgeRes Dodge( int idx, const Sim & env, int quality = 5 ) {
 		
 		int ticks = 0;
 		for (ticks = 0; ticks < maxTicks; ticks++) {
+			if (sim.units[idx].health < startHp && res.hitTick[i] == -1) {
+				res.hitTick[i] = ticks;
+			}
+			if (sim.units[idx].health <= 0) break;
 			if (sim.bullets.empty()) {
 				if (sim.mines.empty()) {
 					break;
 				}
 				sim.SetQuality( 5 );
 			}
-			
-			if (sim.units[idx].health <= 0) break;
-			if (sim.units[idx].health < startHp && res.hitTick[i] == -1) res.hitTick[i] = ticks;
 
 			sim.Tick();
 		}
@@ -1115,9 +1092,9 @@ predictRes HitPredict( const Unit & shooter, Vec2 aim, const Unit & target, bool
 			}
 		}
 
-		//if (checkSelf) {
-		//	sim.units[0].action = GetSimpleMove( sim.units[0], sim.units[1].position );
-		//}
+		if (checkSelf) {
+			sim.units[0].action = GetMoveAction( sim.units[0].position.DirTo( sim.units[1].position ) );
+		}
 
 		Bullet b;
 		b.damage = weapon.params.bullet.damage;
@@ -1215,14 +1192,13 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 	predictRes hcSelf2 = HitPredict( self, aim, enemy, true, 11, false );
 
 	double hcAlly = ally.second ? HitChance( GetUnitRect( *ally.second ), center, aim, self.weapon ):0.0;
-	double hcAlly2 = ally.second ? HitPredict( self, aim, enemy, true, 5, false ).hitChance2:0.0;
+	double hcAlly2 = ally.second ? HitPredict( self, aim, *ally.second, false, 7, false ).hitChance:0.0;
 
 	bool shoot = true;
 
 	if (unit.weapon.type == ROCKET_LAUNCHER) {
 		if (hc2.hitChance < 0.15) shoot = false;
-		if (hcSelf2.hitChance > 0.1) shoot = false;
-		if (selfScore >= enemyScore && hc2.hitChance > 0.7) shoot = true;
+		if (selfScore >= enemyScore && hc2.hitChance > 0.8) shoot = true;
 	}
 	else if (unit.weapon.type == PISTOL) {
 		if (hc < 0 + DBL_EPSILON) shoot = false;
@@ -1230,14 +1206,15 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 	else if (unit.weapon.type == ASSAULT_RIFLE) {
 		if (hc < 0 + DBL_EPSILON) shoot = false;
 	}
-	if (hcAlly > 0.2) shoot = false;
+	if (hcSelf2.hitChance > 0.1) shoot = false;
+	if (hcAlly2 > 0.0) shoot = false;
 
 #ifdef DEBUG
 	debug.draw( CustomData::Rect( predictPos, Vec2( 0.3, 0.3 ), ColorFloat( 1, 1, 1, 1 ) ) );
 	debug.drawLine( enemy.position, predictPos );
-	debug.print( "weapon: hc: " + str( _hc ) + " hcs: " + str( hcSelf ) + " hcl: " + str(hcLast) + VARDUMP(hcAlly) + " ang: " + str( Deg( angle ) ) + " lang: " + str(Deg(lastAngle)) + " angd: " + str( Deg( angleDelta ) ) + " spr: " + str( Deg(self.weapon.spread)) + " timer: " + str(self.weapon.fireTimer) );
+	//debug.print( "weapon: hc: " + str( _hc ) + " hcs: " + str( hcSelf ) + " hcl: " + str(hcLast) + VARDUMP(hcAlly) + " ang: " + str( Deg( angle ) ) + " lang: " + str(Deg(lastAngle)) + " angd: " + str( Deg( angleDelta ) ) + " spr: " + str( Deg(self.weapon.spread)) + " timer: " + str(self.weapon.fireTimer) );
 	debug.print( "hc2: " + str( hc2.hitChance ) + " " + str( hcSelf2.hitChance ) + " hc2m2: " + str( hc2.hitChance2 ) + " " + str( hcSelf2.hitChance2 ) );
-	double rc = RaycastLevel( center, _aim ).second;
+	//double rc = RaycastLevel( center, _aim ).second;
 	//debug.drawLine( center, center + _aim * rc, 0.1f, ColorFloat( 1, 0, 0, 1 ) );
 	//debug.drawLine( center, center + lastAim * RaycastLevel( center, lastAim ).second, 0.1f, ColorFloat( 0.5, 0, 0, 1 ) );
 	//debug.print( "tracedist: " + str( rc ) + " " + str(enemy.onGround) );
@@ -1280,6 +1257,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 
 	//pair<int, UnitAction> enemyReach = EstimateReach( unit, NearestUnit( unit.position, game.units, unit.id, true ).second->position );
 	pair<int, UnitAction> enemyReach = navigate.FindPath( NearestUnit( unit.position, game.units, unit.id, true ).second->position, true );
+	//pair<double, const LootBox *> health = NearestLootbox( unit.position, unit.position, game.lootBoxes, Item::HEALTH_PACK );
 	Vec2 enemyDir = GetActionDir( enemyReach.second );
 
 	//pair<float, const LootBox*> health = NearestLootbox( unit.position, unit.position, game.lootBoxes, Item::HEALTH_PACK );
@@ -1290,6 +1268,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 		double dist = GetCenter( unit ).Dist( GetCenter( l ) );
 		//pair<int, UnitAction> reach = EstimateReach( unit, GetCenter( l ) );
 		pair<int, UnitAction> reach = navigate.FindPath( GetCenter( l ) );
+		if (reach.first == -1) reach.second = GetMoveAction( GetCenter( unit ).DirTo( GetCenter( l ) ) );
 		if (reach.first > 500) continue;
 		double f = 0;
 		switch (l.item.type) {
@@ -1299,7 +1278,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 			break;
 		case Item::WEAPON:
 			if (!unit.hasWeapon) {
-				f = 2000;
+				f = 500000000000;
 			}
 			else {
 				f = max( 0, (WeapScore( l.item.weaponType ) - WeapScore( unit.weapon.type )) ) * 500;
@@ -1412,7 +1391,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 						//s -= dist / range * 20;
 						//if (visible) {
 							s -= (1 - dist / max( range, 1. )) * 1000;
-							if (range < 1.5 && u.hasWeapon) s -= 100000000;
+							if (range < 2 && u.hasWeapon) s -= 100000000;
 						//}
 					}
 				}
@@ -1487,7 +1466,7 @@ UnitAction Quickstart( const Unit &unit ) {
 
 	double range = 0;
 	if (enemy.second->hasWeapon) {
-		range += 3 * (1 - enemy.second->weapon.fireTimer / enemy.second->weapon.params.reloadTime);
+		range += 5 * (1 - enemy.second->weapon.fireTimer / enemy.second->weapon.params.reloadTime);
 	}
 	if (unit.hasWeapon) {
 		range += 3 * (unit.weapon.fireTimer / unit.weapon.params.reloadTime);
@@ -1499,7 +1478,7 @@ UnitAction Quickstart( const Unit &unit ) {
 		range += 4;
 	}
 
-	double enemyHpDist = health2.second ? enemy.second->position.Dist( health2.second->position ) : 10000;
+	double enemyHpDist = health.second ? enemy.second->position.Dist( health.second->position ) : 10000;
 
 	Vec2 targetPos = unit.position;
 	if (!unit.hasWeapon && weapon.second) {
@@ -1510,30 +1489,26 @@ UnitAction Quickstart( const Unit &unit ) {
 		target = 1;
 		targetPos = health.second->position;
 	}
-	else if (enemy.second->health < 100 && health2.second && enemyHpDist < 10 && enemyHpDist < health2.first) {
-		target = 8;
-		targetPos = health2.second->position;
-	}
-	else if (enemy.first < range) {
+	else if (enemy.first < range && enemyVisible) {
 		target = 4;
-		//targetPos.x = unit.position.x -Sign(enemyDir.x) * 5;
-		//if (!Rect( 1, 1, 39, 29 ).Contains( targetPos )) {
-		//	targetPos.x = unit.position.x + Sign(enemyDir.x) * 5;
-		//}
-		//targetPos.y = max( unit.position.y, enemy.second->position.y + 5 );
-		targetPos.x = unit.position.x + -enemyDir.x * 5;
+		targetPos.x = unit.position.x -Sign(enemyDir.x) * 5;
 		if (!Rect( 1, 1, 39, 29 ).Contains( targetPos )) {
-			targetPos.x = unit.position.x + enemyDir.x * 5;
+			targetPos.x = unit.position.x + Sign(enemyDir.x) * 5;
 		}
 		targetPos.y = max( unit.position.y, enemy.second->position.y + 5 );
+		//targetPos.x = unit.position.x + -enemyDir.x * 5;
+		//if (!Rect( 1, 1, 39, 29 ).Contains( targetPos )) {
+		//	targetPos.x = unit.position.x + enemyDir.x * 5;
+		//}
+		//targetPos.y = max( unit.position.y, enemy.second->position.y + 5 );
+	}
+	else if (enemy.second->health < 100 && health.second && enemyHpDist < 10) {
+		target = 8;
+		targetPos = health2.second->position;
 	}
 	else if (health2.second && unit.health < props.unitMaxHealth) {
 		target = 1;
 		targetPos = health2.second->position;
-	}
-	else if (ally.second && ally.first < 3) {
-		target = 6;
-		targetPos = unit.position - unit.position.DirTo( ally.second->position ) * 3;
 	}
 	//else if (mine.second && mine.first < 2) {
 	//	target = 5;
@@ -1548,73 +1523,84 @@ UnitAction Quickstart( const Unit &unit ) {
 		target = 3;
 		targetPos = enemy.second->position;
 	}
+	else if (ally.second && ally.first < 3) {
+		target = 6;
+		targetPos = unit.position - unit.position.DirTo( ally.second->position ) * 3;
+	}
 
 	UnitAction action;
-	action = MoveHelper( unit );
+	//action = MoveHelper( unit );
 
-	//navigate.InitPath( unit.position );
-	//pair<int,UnitAction> path =  navigate.FindPath( targetPos, true );
-	//if (path.first != -1) {
-	//	action = path.second;
-	//}
-	//else {
-	//	action = GetSimpleMove( unit, targetPos );
-	//}
+	navigate.InitPath( unit.position/*+Vec2(0,1.8) */);
+	pair<int,UnitAction> path =  navigate.FindPath( targetPos, true );
+	if (path.first != -1) {
+		action = path.second;
+	}
+	else {
+		action = GetMoveAction( center.DirTo(targetPos) );
+	}
 
-	////action = GetSimpleMove( unit, targetPos );
+	//action = GetSimpleMove( unit, targetPos );
+	//action = UnitAction();
 
-	//if (weapon.second && r.Intersects( GetRect( *weapon.second ) ) && enemy.first > 3) {
-	//	action.swapWeapon = true;
-	//}
+	if (weapon.second && r.Intersects( GetRect( *weapon.second ) ) && enemy.first > 3) {
+		action.swapWeapon = true;
+	}
 
-	//DodgeRes dodge = Dodge( FindUnit( unit, game.units ), game, 100 );
-	//int hitTick = dodge.hitTick[GetActionIndex( action )];
-	//bool shouldDodge = dodge.numSafeMoves < 9 /*&& hitTick != -1*/;
+	Sim dodgeSim;
+	dodgeSim.units.emplace_back( unit );
+	dodgeSim.bullets = game.bullets;
+	dodgeSim.mines = game.mines;
+	DodgeRes dodge = Dodge( 0, dodgeSim, 100 );
+	int actionId = GetActionIndex( action );
+	int hitTick = dodge.hitTick[actionId];
+	//DodgeRes dodge2 = Dodge( FindUnit(unit,game.units), game, 100 );
+	//int hitTick2 = dodge2.hitTick[actionId];
+	bool shouldDodge = dodge.numSafeMoves < 9 && hitTick != -1;
 
-	//if (/*unit.health > 10 &&*/ unit.health - dodge.minHP < 10 && dodge.minHP > 0 && target == 1) shouldDodge = false;
+	if (/*unit.health > 10 &&*/ unit.health - dodge.minHP < 10 && dodge.minHP > 0 && target == 1) shouldDodge = false;
 
-	//if (shouldDodge) {
-	//	action.SetMove( GetAction( dodge.action ) );
-	//}
-
-	//UnitAction aim = AimHelper( unit, *enemy.second );
-
-	//action.shoot = aim.shoot;
-	//action.aim = aim.aim;
-
-	//if (!shouldDodge && action.jump && unit.jumpState.maxTime < props.unitJumpTime *0.5 && GetTileAt( unit.position - Vec2( 0, moveDelta ) ) == PLATFORM && GetTileAt( unit.position ) == EMPTY) {
-	//	action.jump = false;
-	//	action.jumpDown = false;
-	//}
-
-	//if (!action.shoot && enemy.first < 1.5 || (abs( enemy.second->position.x - unit.position.x ) < 2 && enemy.second->position.y < unit.position.y)/*&& unit.health > nearestEnemy->health*/) {
-	//	action.plantMine = true;
-	//}
-
-	//if (ally.second) {
-	//	bfpair allyRay = RaycastLevel( unit.position - Vec2( 0, DBL_EPSILON ), GetActionDir( action ), GetUnitRect( *ally.second ) );
-	//	bool blockedByAlly = allyRay.first && allyRay.second < 2;
-
-	//	if (!shouldDodge && blockedByAlly && ally.second->onGround) action.jump = true;
-	//}
+	if (shouldDodge) {
+		action.SetMove( GetAction( dodge.action ) );
+	}
 
 	UnitAction aim = AimHelper( unit, *enemy.second );
 
 	action.shoot = aim.shoot;
 	action.aim = aim.aim;
-	if (action.jump && unit.jumpState.maxTime < props.unitJumpTime *0.5 && GetTileAt( unit.position - Vec2( 0, moveDelta ) ) == PLATFORM && GetTileAt( unit.position ) == EMPTY) {
+
+	if (!shouldDodge && action.jump && unit.jumpState.maxTime < props.unitJumpTime *0.5 && GetTileAt( unit.position - Vec2( 0, moveDelta ) ) == PLATFORM && GetTileAt( unit.position ) == EMPTY) {
 		action.jump = false;
 		action.jumpDown = false;
 	}
-	if (!action.shoot && enemy.first < 1.5 || (abs( enemy.second->position.x - unit.position.x ) < 2 && enemy.second->position.y < unit.position.y)/*&& unit.health > nearestEnemy->health*/) {
+
+	if (!action.shoot && enemy.first < 1.5 || (abs( enemy.second->position.x - unit.position.x ) < 2 && enemy.second->position.y < unit.position.y)) {
 		action.plantMine = true;
 	}
-	if (weapon.second && r.Intersects( GetRect( *weapon.second ) ) && enemy.first > 3) {
-		action.swapWeapon = true;
+
+	if (ally.second) {
+		bfpair allyRay = RaycastLevel( unit.position - Vec2( 0, DBL_EPSILON ), GetActionDir( action ), GetUnitRect( *ally.second ) );
+		bool blockedByAlly = allyRay.first && allyRay.second < 2;
+
+		if (!shouldDodge && blockedByAlly && ally.second->onGround) action.jump = true;
 	}
 
+	//UnitAction aim = AimHelper( unit, *enemy.second );
+	//action.shoot = aim.shoot;
+	//action.aim = aim.aim;
+	//if (action.jump && unit.jumpState.maxTime < props.unitJumpTime *0.5 && GetTileAt( unit.position - Vec2( 0, moveDelta ) ) == PLATFORM && GetTileAt( unit.position ) == EMPTY) {
+	//	action.jump = false;
+	//	action.jumpDown = false;
+	//}
+	//if (!action.shoot && enemy.first < 1.5 || (abs( enemy.second->position.x - unit.position.x ) < 2 && enemy.second->position.y < unit.position.y)/*&& unit.health > nearestEnemy->health*/) {
+	//	//action.plantMine = true;
+	//}
+	//if (weapon.second && r.Intersects( GetRect( *weapon.second ) ) && enemy.first > 3) {
+	//	action.swapWeapon = true;
+	//}
+
 #ifdef DEBUG
-	//debug.print( VARDUMP(hitTick) + VARDUMP( enemy.first ) + VARDUMP(enemy.second->weapon.magazine ) + VARDUMP(enemy.second->weapon.fireTimer ) );
+	debug.print( VARDUMP(range) + VARDUMP(actionId) + VARDUMP(hitTick) + VARDUMP( enemy.first ) + VARDUMP(enemy.second->weapon.magazine ) + VARDUMP(enemy.second->weapon.fireTimer ) );
 	debug.print( "target: " + str( target ) + " " + action.toString() );
 	debug.drawLine( center, targetPos, 0.05, ColorFloat( 0, 1, 0, 1 ) );
 	debug.drawWireRect( r, 0.05 );

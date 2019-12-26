@@ -49,6 +49,7 @@ if os.path.exists('batch_preset.json'):
     config = load_json('batch_preset.json')
     config['options_preset']['Custom']['properties']['team_size'] = team_size
     config['options_preset']['Custom']['properties']['max_tick_count'] = 3600
+    config['options_preset']['Custom']['level'] = 'Complex'
 else:
     config = {}
     config['options_preset'] = {'Custom': {'level': 'Simple', 'properties': None}}
