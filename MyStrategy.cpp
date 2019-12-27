@@ -719,7 +719,7 @@ public:
 	}
 
 	void MoveUnit( Unit & u ) {
-		//if (u.onGround && u.jumpState.maxTime == 0 && !u.action.IsMove()) return;
+		if (u.onGround && u.jumpState.maxTime == 0 && !u.action.IsMove()) return;
 
 		double moveDelta = props.unitMaxHorizontalSpeed * deltaTime;
 
@@ -1128,15 +1128,15 @@ predictRes HitPredict( const Unit & shooter, Vec2 aim, const Unit & target, bool
 		static Sim sim( 5 );
 		sim.units.clear();
 		sim.bullets.clear();
-		sim.units.emplace_back( target );
-		sim.units.emplace_back( shooter );
-		//if (!checkSelf) {
-		//	sim.units.emplace_back( target );
-		//	sim.units.emplace_back( shooter );
-		//}
-		//else {
-		//	sim.units = game.units;
-		//}
+		//sim.units.emplace_back( target );
+		//sim.units.emplace_back( shooter );
+		if (!checkSelf) {
+			sim.units.emplace_back( target );
+			sim.units.emplace_back( shooter );
+		}
+		else {
+			sim.units = game.units;
+		}
 		sim.mines = game.mines;
 
 		for (const Bullet & b : game.bullets) {
@@ -1285,21 +1285,21 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 			if (!scdEnemy) hcEnemy1 = pred; else hcEnemy2 = pred;
 			scdEnemy = true;
 		}
-		double deltaHp = (u.health - pred.avgHealth)/* + (pred.numKills/(double)pred.numTraces)*100*/;
+		double deltaHp = (u.health - pred.avgHealth) + (pred.numKills/(double)pred.numTraces)*100;
 		avgHp += isAlly ? -deltaHp*1.4 : deltaHp;
 	}
-	bool shoot = unit.weapon.type == ROCKET_LAUNCHER ? avgHp > 0:avgHp >= 0 && hc > 0;
-	//bool shoot = true;
-	//if (unit.weapon.type == ROCKET_LAUNCHER) {
-	//	if (hcEnemy1.hitChance + hcEnemy2.hitChance < 0.15 + DBL_EPSILON) shoot = false;
-	//}
-	//else if (unit.weapon.type == PISTOL) {
-	//	if (hc < 0 + DBL_EPSILON) shoot = false;
-	//}
-	//else if (unit.weapon.type == ASSAULT_RIFLE) {
-	//	if (hc < 0 + DBL_EPSILON) shoot = false;
-	//}
-	//if (avgHp < 0) shoot = false;
+	//bool shoot = unit.weapon.type == ROCKET_LAUNCHER ? avgHp > 0:avgHp >= 0 && hc > 0;
+	bool shoot = true;
+	if (unit.weapon.type == ROCKET_LAUNCHER) {
+		if (hcEnemy1.hitChance + hcEnemy2.hitChance < 0.15 + DBL_EPSILON) shoot = false;
+	}
+	else if (unit.weapon.type == PISTOL) {
+		if (hc < 0 + DBL_EPSILON) shoot = false;
+	}
+	else if (unit.weapon.type == ASSAULT_RIFLE) {
+		if (hc < 0 + DBL_EPSILON) shoot = false;
+	}
+	if (avgHp < 0) shoot = false;
 
 #ifdef DEBUG
 	debug.drawRect( Rect( predictPos, 0.15 ), ColorFloat( 1, 1, 1, 1 ) );
@@ -1447,7 +1447,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 					//range = 0;
 					if (dist > range) {
 						if (visible) {
-							s += (1 - dist / maxDist) * 2300;
+							s += (1 - dist / maxDist) * 2500;
 						}
 					}
 					else {
@@ -1460,7 +1460,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 				}
 				else {
 					range = 2.5;
-					if (dist < range && (self.position.y - u.position.y) < 1.8) {
+					if (dist < range /*&& (self.position.y - u.position.y) < 1.8*/) {
 						s -= (1 - dist / max( range, 1. )) * 2300;
 						if (dist < 2 + DBL_EPSILON) s -= 1000;
 					}
