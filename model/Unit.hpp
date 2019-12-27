@@ -52,6 +52,8 @@ public:
 	bool touchUnit = false;
 	int numTriggered = 0;
 
+	bool ignoreBullet = false;
+
     Unit();
     Unit(int playerId, int id, int health, Vec2Double position, Vec2Double size, JumpState jumpState, bool walkedRight, bool stand, bool onGround, bool onLadder, int mines, std::shared_ptr<Weapon> weapon);
     static Unit readFrom(InputStream& stream);

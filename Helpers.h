@@ -33,6 +33,7 @@
 #include <float.h>
 #include <time.h>
 #include <cstring>
+#include <tuple>
 
 #ifndef FLT_EPSILON
 #	define FLT_EPSILON 1.192092896e-07F 

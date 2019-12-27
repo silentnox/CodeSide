@@ -7,7 +7,12 @@ Debug::Debug(const std::shared_ptr<OutputStream> &outputStream)
 void Debug::draw(const CustomData &customData) {
   outputStream->write(PlayerMessageGame::CustomDataMessage::TAG);
   customData.writeTo(*outputStream);
-  outputStream->flush();
+  //outputStream->flush();
+}
+
+void Debug::flush()
+{
+	outputStream->flush();
 }
 
 void Debug::print( const std::string & message )
