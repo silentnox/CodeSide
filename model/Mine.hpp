@@ -23,7 +23,7 @@ public:
     double triggerRadius;
     ExplosionParams explosionParams;
     Mine();
-    Mine(int playerId, Vec2Double position, Vec2Double size, MineState state, std::shared_ptr<double> timer, double triggerRadius, ExplosionParams explosionParams);
+    Mine(int playerId, Vec2Double position, Vec2Double size, MineState state, double timer, double triggerRadius, ExplosionParams explosionParams);
     static Mine readFrom(InputStream& stream);
     void writeTo(OutputStream& stream) const;
     std::string toString() const;

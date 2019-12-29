@@ -1,7 +1,7 @@
 #include "Mine.hpp"
 
 Mine::Mine() { }
-Mine::Mine(int playerId, Vec2Double position, Vec2Double size, MineState state, std::shared_ptr<double> timer, double triggerRadius, ExplosionParams explosionParams) : playerId(playerId), position(position), size(size), state(state), timer(*timer), triggerRadius(triggerRadius), explosionParams(explosionParams) { }
+Mine::Mine(int playerId, Vec2Double position, Vec2Double size, MineState state, double timer, double triggerRadius, ExplosionParams explosionParams) : playerId(playerId), position(position), size(size), state(state), timer(timer), triggerRadius(triggerRadius), explosionParams(explosionParams) { }
 Mine Mine::readFrom(InputStream& stream) {
     Mine result;
     result.playerId = stream.readInt();
