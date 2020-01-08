@@ -10,15 +10,15 @@ using namespace std;
 #	define DBG(x)
 #endif //  DEBUG
 
-Clock mhClock,dodgeClock,hpClock,mineClock,totalClock;
+Clock moveClock,dodgeClock,hitClock,mineClock,navClock,totalClock;
 
 MyStrategy::MyStrategy() {}
 
-struct Persist {
-	int lastDamaged = -1;
-	int lastTarget = -1;
-};
-map<int, Persist> persist;
+//struct Persist {
+//	int lastDamaged = -1;
+//	int lastTarget = -1;
+//};
+//map<int, Persist> persist;
 
 Properties props;
 Level level;
@@ -27,7 +27,8 @@ Debug debug;
 Game game, prevGame;
 
 int selfPlayer;
-bool mode2x2;
+bool mode2x2 = false;
+bool simpleMap = false;
 
 int selfScore = 0, enemyScore = 0;
 int selfScoreTick = 0, enemyScoreTick = 0;
@@ -150,11 +151,24 @@ UnitAction GetSimpleMove( const Unit & u, Vec2 target ) {
 	return action;
 }
 
+int FindUnit( int id, const vector<Unit> & units ) {
+	for (int i = 0; i < units.size(); i++) {
+		if (units[i].id == id) return i;
+	}
+	return -1;
+}
+
+int FindUnit( const Unit & u, const vector<Unit> & units ) {
+	for (int i = 0; i < units.size(); i++) {
+		if (units[i].id == u.id) return i;
+	}
+	return -1;
+}
 
 int WeapScore( WeaponType weap ) {
 	switch (weap) {
 	case WeaponType::PISTOL:
-		return 2;
+		return mode2x2?2:4;
 	case WeaponType::ASSAULT_RIFLE:
 		return 1;
 	case WeaponType::ROCKET_LAUNCHER:
@@ -189,8 +203,8 @@ bfpair RaycastLevel( Vec2 from, Vec2 dir, Rect target = Rect( 0, 0, 0, 0 ) ) {
 	return bfpair( false, mindist );
 }
 
-bool IsVisible( Vec2 from, Rect target ) {
-	return RaycastLevel( from, from.DirTo( target.Center() ), target ).first;
+bool IsVisible( Vec2 from, Vec2 target ) {
+	return RaycastLevel( from, from.DirTo( target ) ).second > from.Dist(target);
 }
 
 class Navigate {
@@ -211,8 +225,7 @@ public:
 	vector<int> bfs,bfs2;
 	Vec2 origin;
 	Rect rect;
-
-	Clock clock;
+	JumpState jumpState;
 
 	void InitPathing() {
 		bfs.resize( 40 * 30 );
@@ -237,21 +250,24 @@ public:
 						h++;
 					}
 				}
-				if (t == Tile::LADDER) {
-					//bfs[Tid( i - 1, j )] = 1;
-					//bfs[Tid( i + 1, j )] = 1;
-					if (Tiles[i - 1][j] == PLATFORM) {
-						bfs[Tid( i - 1, j )] = 1;
-						bfs[Tid( i - 1, j-1 )] = 1;
-						bfs[Tid( i - 1, j-2 )] = 1;
-					}
-					if (Tiles[i + 1][j] == PLATFORM) {
-						bfs[Tid( i + 1, j )] = 1;
-						bfs[Tid( i + 1, j-1 )] = 1;
-						bfs[Tid( i + 1, j-2 )] = 1;
-					}
-				}
-				//if(t == Tile::JUMP_PAD) bfs[Tid( i, j )] = 1;
+				//if (t == Tile::LADDER) {
+				//	//bfs[Tid( i - 1, j )] = 1;
+				//	//bfs[Tid( i + 1, j )] = 1;
+				//	if (Tiles[i - 1][j] == PLATFORM) {
+				//		bfs[Tid( i - 1, j )] = 1;
+				//		bfs[Tid( i - 1, j-1 )] = 1;
+				//		bfs[Tid( i - 1, j-2 )] = 1;
+				//	}
+				//	if (Tiles[i + 1][j] == PLATFORM) {
+				//		bfs[Tid( i + 1, j )] = 1;
+				//		bfs[Tid( i + 1, j-1 )] = 1;
+				//		bfs[Tid( i + 1, j-2 )] = 1;
+				//	}
+				//}
+				//if (t == Tile::JUMP_PAD) {
+				//	bfs[Tid( i, j )] = 1;
+				//	bfs[Tid( i, j+1 )] = 1;
+				//}
 			}
 		}
 	}
@@ -267,11 +283,12 @@ public:
 	}
 
 	void InitPath( const Unit & u ) {
-		clock.Begin();
+		navClock.Begin();
 
 		Vec2 from = u.position;
 		origin = from;
 		rect = GetUnitRect( u );
+		jumpState = u.jumpState;
 		int id = Tid( (int)floor( from.x ), (int)floor( from.y ) );
 		
 		preds.clear();
@@ -291,7 +308,7 @@ public:
 		}
 #endif //  DEBUG
 
-		clock.End();
+		navClock.End();
 	}
 
 	int GetDist( Vec2 target ) const {
@@ -305,49 +322,89 @@ public:
 
 		static const double moveDelta = 10. * (1. / 60.);
 
-		//if (target.y < origin.y && RaycastLevel( origin, origin.DirTo( target ) ).second > origin.Dist( target )) return pair<int, UnitAction>( 1, GetMoveAction( origin.DirTo( target ) ) );
-
 		int id = Tid( (int)floor( target.x ), (int)floor( target.y ) );
 		Tile tile = GetTileAt( target );
 		vint path = Graph::PredcessorToPath( id, preds );
 
 		if (path.size() < 2) return pair<int, UnitAction>( -1, UnitAction() );
 
-		clock.Begin();
+		navClock.Begin();
 
 		int dist = dists[id] * 6;
 		UnitAction action;
 		ipair node1 = Tcd( path[0] );
 		ipair node2 = Tcd( path[1] );
 
-		int ox = node2.first - node1.first;
-		int oy = node2.second - node1.second;
+		int idx = 0;
+		Vec2 a( rect.Min.x, rect.Max.y );
+		Vec2 b( rect.Max.x, rect.Max.y );
+		Rect r( rect.Center(), 6 );
+		while (idx < path.size() - 1) {
+			ipair node = Tcd( path[idx] );
+			Rect tr = TileRects[node.first][node.second];
+			Vec2 cent = tr.Center()/*-Vec2(0,0.45)*/;
+			//if (!tr.Intersects( r ) || !IsVisible( a, cent ) || !IsVisible( b, cent ) || !IsVisible( origin/*-Vec2(0,moveDelta*2)*/, cent ) ) {
+			if (!tr.Intersects( r ) || !IsVisible(rect.Center(),cent) || GetTileAt(cent) == JUMP_PAD ) {
+				if(idx>1)idx--;
+				break;
+			}
+			idx++;
+		}
+		node2 = Tcd( path[idx] );
+
+		Vec2 center = TileRects[node2.first][node2.second].Center() - Vec2(0,0.5);
+
+		DBG( debug.drawLine( rect.Center(), center ) );
+		DBG( debug.drawWireRect( TileRects[node2.first][node2.second] ) );
+		//DBG( debug.drawLine( origin, origin + origin.DirTo(center) * RaycastLevel(origin,origin.DirTo(center) ).second, 0.05, ColorFloat(1,0,0,1) ) );
+		//DBG( debug.drawLine( a, a + a.DirTo(center) * RaycastLevel(a,a.DirTo(center) ).second, 0.05, ColorFloat(1,0,0,1) ) );
+		//DBG( debug.drawLine( b, b + b.DirTo(center) * RaycastLevel(b,b.DirTo(center) ).second, 0.05, ColorFloat(1,0,0,1) ) );
+
+		double groundDist = RaycastLevel( origin, Vec2( 0, -1 ) ).second;
+
+		//double dx = node2.first - node1.first;
+		//double dy = node2.second - node1.second;
+		double dx = center.x - origin.x;
+		double dy = center.y - origin.y;
+		int ox = Sign( dx, 0.05 );
+		int oy = Sign( dy, 0.1 );
+
+		//ox = Sign( center.x - origin.x, 0.05 );
+		//oy = Sign( center.y - origin.y, 0.1 );
+
+		//bool jump = GetTileAt( origin ) == EMPTY && jumpState.maxTime > 1e-3;
+		bool jump = false;
+		jump |= ox < 0 && GetTileAt( origin + Vec2( -1, 0 ) ) == WALL;
+		jump |= ox > 0 && GetTileAt( origin + Vec2( 1, 0 ) ) == WALL;
+		jump |= ox < 0 && GetTileAt( origin + Vec2( -1, -1 ) ) == EMPTY && min(groundDist,abs(dx) ) < abs(dx);
+		jump |= ox > 0 && GetTileAt( origin + Vec2( 1, -1 ) ) == EMPTY && min( groundDist, abs( dx ) ) < abs( dx );
+		jump |= oy >= 0 && GetTileAt( center + Vec2( 0, -1 ) ) == EMPTY;
 
 		if (ox > 0) action.velocity = 10;
 		else if (ox < 0) action.velocity = -10;
 		else if (ox == 0) action.velocity = 0;
 
-		if (oy > 0) action.jump = true;
+		if (oy > 0 || jump) action.jump = true;
 		else if (oy < 0) action.jumpDown = true;
 
-		if (oy != 0) {
-			int n = 0;
-			while (n < path.size() - 1 && Tcd( path[n] ).first == node1.first) {
-				n++;
-			}
-			ipair node = Tcd( path[n] );
-			Rect r = TileRects[node1.first][node1.second];
-			double snap = r.Center().x - origin.x;
-			if (abs( snap ) > 0) {
-				action.velocity = Sign( snap ) * 10;
-			}
-			if(node.first > node1.first && GetTileAt(origin+Vec2(1,0)) == WALL) action.velocity = 10;
-			if(node.first < node1.first && GetTileAt(origin+Vec2(-1,0)) == WALL) action.velocity = -10;
-			//if(oy < 0 && ( GetTileAt(origin+Vec2(0.1,-1)) == JUMP_PAD || GetTileAt( origin + Vec2( 0.1, 0 ) ) == JUMP_PAD) ) action.velocity = -10;
-			//if(oy < 0 && (GetTileAt( origin + Vec2( -0.1, -1 ) ) == JUMP_PAD || GetTileAt( origin + Vec2( -0.1, 0 ) ) == JUMP_PAD)) action.velocity = 10;
-			if(oy < 0 && IsOnTile( rect.Expand(Vec2(0,0.2)) + Vec2(0.1,0.), JUMP_PAD ) ) action.velocity = -10;
-			if(oy < 0 && IsOnTile( rect.Expand( Vec2( 0, 0.2 ) ) + Vec2( -0.1, 0. ), JUMP_PAD )) action.velocity = 10;
-		}
+		//if (oy != 0) {
+		//	int n = 0;
+		//	while (n < path.size() - 1 && Tcd( path[n] ).first == node1.first) {
+		//		n++;
+		//	}
+		//	ipair node = Tcd( path[n] );
+		//	Rect r = TileRects[node1.first][node1.second];
+		//	double snap = r.Center().x - origin.x;
+		//	if (abs( snap ) > 0) {
+		//		action.velocity = Sign( snap ) * 10;
+		//	}
+		//	if(node.first > node1.first && GetTileAt(origin+Vec2(1,0)) == WALL) action.velocity = 10;
+		//	if(node.first < node1.first && GetTileAt(origin+Vec2(-1,0)) == WALL) action.velocity = -10;
+		//	//if(oy < 0 && ( GetTileAt(origin+Vec2(0.1,-1)) == JUMP_PAD || GetTileAt( origin + Vec2( 0.1, 0 ) ) == JUMP_PAD) ) action.velocity = -10;
+		//	//if(oy < 0 && (GetTileAt( origin + Vec2( -0.1, -1 ) ) == JUMP_PAD || GetTileAt( origin + Vec2( -0.1, 0 ) ) == JUMP_PAD)) action.velocity = 10;
+		//	if(oy < 0 && IsOnTile( rect.Expand(Vec2(0,0.2)) + Vec2(0.1,0.), JUMP_PAD ) ) action.velocity = -10;
+		//	if(oy < 0 && IsOnTile( rect.Expand( Vec2( 0, 0.2 ) ) + Vec2( -0.1, 0. ), JUMP_PAD )) action.velocity = 10;
+		//}
 
 #ifdef  DEBUG
 		if (draw) {
@@ -358,7 +415,7 @@ public:
 		}
 #endif //  DEBUG
 
-		clock.End();
+		navClock.End();
 
 		return pair<int, UnitAction>( dist, action );
 	}
@@ -370,12 +427,16 @@ public:
 		for (const LootBox & l : items) {
 			if (l.item.type != type) continue;
 			if (l.item.type == Item::WEAPON && weaponType != -1 && !IsBetterWeapon((WeaponType)weaponType, l.item.weaponType)) continue;
-			pair<int, UnitAction> reach = FindPath( GetCenter( l ) );
-			if (reach.first < get<0>( nearest )) {
-				get<0>( nearest ) = reach.first;
+			//pair<int, UnitAction> reach = FindPath( GetCenter( l ) );
+			int dist = GetDist( GetCenter( l ) );
+			if (dist < get<0>( nearest )) {
+				get<0>( nearest ) = dist;
 				get<1>( nearest ) = &l;
-				get<2>( nearest ) = reach.second;
+				//get<2>( nearest ) = reach.second;
 			}
+		}
+		if (get<1>( nearest )) {
+			get<2>( nearest ) = FindPath( GetCenter( *get<1>( nearest ) ) ).second;
 		}
 		return nearest;
 	}
@@ -451,10 +512,17 @@ void InitLevel( const Game & _game, const Unit & self ) {
 			Tile tile = level.tiles[i][j];
 			Tiles[i][j] = tile;
 			TileRects[i][j] = Rect( i, j, i + 1, j + 1 );
-			if (tile != WALL || (i != 0 && j != 0 && i != 39 && j != 29 ) ) {
+			if (tile != WALL || (i != 0 && j != 0 && i != 39 && j != 29)) {
 				//TilesByType[tile].emplace_back( ipair( i, j ) );
-				TilesByType[tile].emplace_back( Rect( i,j,i+1.,j+1. ) );
+				TilesByType[tile].emplace_back( Rect( i, j, i + 1., j + 1. ) );
 			}
+		}
+	}
+
+	for (int i = 0; i < 40; i++) {
+		if (Tiles[i][0] == EMPTY) {
+			simpleMap = true;
+			break;
 		}
 	}
 
@@ -539,20 +607,6 @@ double HitChance( Rect target, Vec2 from, Vec2 dir, const Weapon & weapon, int n
 	}
 
 	return hits/(double)numRays;
-}
-
-int FindUnit( int id, const vector<Unit> & units ) {
-	for (int i = 0; i < units.size(); i++) {
-		if (units[i].id == id) return i;
-	}
-	return -1;
-}
-
-int FindUnit( const Unit & u, const vector<Unit> & units ) {
-	for (int i = 0; i < units.size(); i++) {
-		if (units[i].id == u.id) return i;
-	}
-	return -1;
 }
 
 pair<double, const Unit*> NearestUnit( Vec2 from, const vector<Unit> & items, int excludeId, bool enemy, bool raycast = false ) {
@@ -726,7 +780,7 @@ public:
 				case Item::HEALTH_PACK:
 					if (u.health < props.unitMaxHealth) {
 						int newHealth = min( u.health + props.healthPackHealth, props.unitMaxHealth );
-						u.numHealed += newHealth - u.health;
+						//u.numHealed += newHealth - u.health;
 						u.health = newHealth;
 						stdh::erase( lootBoxes, lb, stdh::pointer_equal<LootBox> );
 					}
@@ -859,7 +913,7 @@ public:
 		if (playerId != u.playerId) {
 			score[playerId == selfPlayer ? 0 : 1] += min( u.health, amount );
 		}
-		if (u.health <= 0) score[u.playerId != selfPlayer ? 0 : 1] += 1000;
+		if (u.health <= 0 && u.health + amount > 0) score[u.playerId != selfPlayer ? 0 : 1] += 1000;
 	}
 
 	void ExplodeMine( Mine & m ) {
@@ -942,7 +996,7 @@ public:
 			if (!ids.empty()) {
 				m.state = TRIGGERED;
 				m.timer = props.mineTriggerTime;
-				units[ids[0]].numTriggered++;
+				//units[ids[0]].numTriggered++;
 			}
 		}
 
@@ -1162,7 +1216,7 @@ predictRes HitPredict( const Unit & shooter, Vec2 aim, const Unit & target, bool
 
 	res.avgHealth = 0;
 
-	hpClock.Begin();
+	hitClock.Begin();
 
 	double spread = shooter.weapon.spread;
 
@@ -1244,7 +1298,7 @@ predictRes HitPredict( const Unit & shooter, Vec2 aim, const Unit & target, bool
 	res.avgHealth /= numTraces;
 	res.avgHealth2 /= numTraces;
 
-	hpClock.End();
+	hitClock.End();
 
 	return res;
 }
@@ -1256,9 +1310,15 @@ bool TryPlantMine( const Unit & unit ) {
 	return enemy.first < 1.5 || (abs( enemy.second->position.x - unit.position.x ) < 2 && enemy.second->position.y < unit.position.y);
 }
 
+bool CanPlantMine( Vec2 pos ) {
+	Tile t = GetTileAt( pos + Vec2( 0, -1 / 60. * 10 ) );
+	return t == WALL || t == PLATFORM;
+}
+
 bpair TryPlantMine2( const Unit & unit ) {
 	const double deltaTime = 1 / 60.;
-	if (!unit.onGround || !unit.mines || !unit.hasWeapon || unit.weapon.fireTimer > deltaTime) return bpair(false,false);
+
+	if (!CanPlantMine(unit.position) || !unit.mines || !unit.hasWeapon || unit.weapon.fireTimer > deltaTime*3) return bpair(false,false);
 
 	mineClock.Begin();
 
@@ -1282,8 +1342,9 @@ bpair TryPlantMine2( const Unit & unit ) {
 
 	static Sim sim;
 	sim.mines = game.mines;
-	if(unit.mines > 1) sim.mines.emplace_back( m );
-	sim.bullets = game.bullets;
+	//if(unit.mines > 1) sim.mines.emplace_back( m );
+	//sim.bullets = game.bullets;
+	sim.bullets.clear();
 	sim.units = game.units;
 
 	for (Unit & u : sim.units) u.ignoreBullet = true;
@@ -1313,6 +1374,8 @@ bpair TryPlantMine2( const Unit & unit ) {
 	}
 
 	mineClock.End();
+
+	DBG( debug.print(VARDUMP( totalScore[0] ) + VARDUMP( totalScore[1] ) ) );
 
 	return bpair(totalScore[0] > 0, totalScore[0] >= totalScore[1]);
 }
@@ -1354,11 +1417,13 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 
 	Vec2 lastAim = Vec2( 1, 0 ).Rotate( lastAngle );
 
-	//const double aimSpeed = Rad( max( 3., 24. / dist ) );
+	const double aimSpeed = unit.weapon.params.aimSpeed * (1. / 60.);
 
-	//if (abs(angleDelta) < M_PI && abs(angleDelta) > aimSpeed ) {
-	//	//aim = lastAim.Rotate( Sign( angleDelta ) * aimSpeed );
-	//}
+	bool smooth = false;
+	if (abs(angleDelta) < Rad(20) && abs(angleDelta) > aimSpeed ) {
+		aim = lastAim.Rotate( Sign( angleDelta ) * aimSpeed );
+		smooth = true;
+	}
 
 	Unit self = unit;
 	self.weapon.spread += abs( angleDelta );
@@ -1403,37 +1468,24 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 	//}
 	//if (avgHp < 0) shoot = false;
 
-#ifdef DEBUG
-	debug.drawRect( Rect( predictPos, 0.15 ), ColorFloat( 1, 1, 1, 1 ) );
-	debug.drawLine( enemy.position, predictPos );
-	//debug.print( "weapon: hc: " + str( _hc ) + " hcs: " + str( hcSelf ) + " hcl: " + str(hcLast) + VARDUMP(hcAlly) + " ang: " + str( Deg( angle ) ) + " lang: " + str(Deg(lastAngle)) + " angd: " + str( Deg( angleDelta ) ) + " spr: " + str( Deg(self.weapon.spread)) + " timer: " + str(self.weapon.fireTimer) );
-	//debug.print( VARDUMP(shoot) + "hc2: " + str( hc2.hitChance ) + " " + str( hcSelf2.hitChance ) + " hc2m2: " + str( hc2.hitChance2 ) + " " + str( hcSelf2.hitChance2 ) );
-	debug.print( VARDUMP( avgHp ) + VARDUMP(shoot) + " hc2: " + str( hcEnemy1.hitChance ) + " " + str( hcSelf.hitChance ) );
-#endif
-
 	UnitAction action;
 
 	action.aim = aim;
 	action.shoot = shoot;
 
-	//action.plantMine = TryPlantMine( unit );
-	//if (action.plantMine) action.shoot = false;
-
-	bpair plant = TryPlantMine2( unit );
-	if (plant.first) {
-		action.plantMine = true;
-		action.shoot = false;
-		if (plant.second) {
-			action.aim = Vec2( 0, -1 );
-			action.shoot = true;
-		}
-	}
+#ifdef DEBUG
+	debug.drawRect( Rect( predictPos, 0.15 ), ColorFloat( 1, 1, 1, 1 ) );
+	debug.drawLine( enemy.position, predictPos );
+	//debug.print( "weapon: hc: " + str( _hc ) + " hcs: " + str( hcSelf ) + " hcl: " + str(hcLast) + VARDUMP(hcAlly) + " ang: " + str( Deg( angle ) ) + " lang: " + str(Deg(lastAngle)) + " angd: " + str( Deg( angleDelta ) ) + " spr: " + str( Deg(self.weapon.spread)) + " timer: " + str(self.weapon.fireTimer) );
+	//debug.print( VARDUMP(shoot) + "hc2: " + str( hc2.hitChance ) + " " + str( hcSelf2.hitChance ) + " hc2m2: " + str( hc2.hitChance2 ) + " " + str( hcSelf2.hitChance2 ) );
+	debug.print( VARDUMP( avgHp ) + VARDUMP( shoot ) + " hc2: " + str( hcEnemy1.hitChance ) + " " + str( hcSelf.hitChance ) + VARDUMP( Deg( angleDelta ) ) + VARDUMP2( "ft",unit.weapon.fireTimer ) );
+#endif
 
 	return action;
 }
 
 UnitAction MoveHelper( const Unit & unit ) {
-	mhClock.Begin();
+	moveClock.Begin();
 
 	double score[9];
 
@@ -1451,10 +1503,11 @@ UnitAction MoveHelper( const Unit & unit ) {
 	vector<LootBox> lootBoxes;
 	for (const LootBox & l : game.lootBoxes) {
 		if (l.item.type == Item::MINE) continue;
+		Vec2 enemyPos = NearestUnit( GetCenter( l ), game.units, unit.id, true ).second->position;
 		bfpair ray1 = RaycastLevel( GetCenter( unit ), GetCenter( unit ).DirTo( GetCenter( l ) ), GetRect(l) );
-		bfpair ray2 = RaycastLevel( nearestEnemyPos, nearestEnemyPos.DirTo( GetCenter( l ) ), GetRect(l) );
+		bfpair ray2 = RaycastLevel( enemyPos, enemyPos.DirTo( GetCenter( l ) ), GetRect(l) );
 
-		if (ray1.first >= ray2.first) {
+		if (ray1.first >= ray2.first && ray2.first == false) {
 			lootBoxes.emplace_back( l );
 		}
 		else if(ray1.second < ray2.second){
@@ -1464,6 +1517,8 @@ UnitAction MoveHelper( const Unit & unit ) {
 
 	tuple<int, const LootBox*, UnitAction> health = navigate.NearestLootbox( lootBoxes, Item::HEALTH_PACK );
 	tuple<int, const LootBox*, UnitAction> weapon = navigate.NearestLootbox( lootBoxes, Item::WEAPON, unit.hasWeapon?unit.weapon.type:-1 );
+	tuple<int, const LootBox*, UnitAction> mine = navigate.NearestLootbox( game.lootBoxes, Item::MINE );
+	//pair<double, const LootBox*> mine = NearestLootbox( unit.position, unit.position, game.lootBoxes, Item::MINE );
 	pair<int, UnitAction> enemyReach = navigate.FindPath( nearestEnemyPos, true );
 
 	for (int i = 0; i < 9; i++) {
@@ -1543,14 +1598,20 @@ UnitAction MoveHelper( const Unit & unit ) {
 					if (rl) {
 						if (wallDistX < 2) s -= (1. - wallDistX / 2.) * 300 * f2;
 					}
-					//if (isFloat) s -= rl?2000:700 * f2;
-					//if (!self.onGround) s -= 500 * f2;
 					if (isFloat) s -= rl?2000:500 * f2;
 					if (self.position.y < u.position.y) {
 						s -= (u.position.y - self.position.y) * 100;
 					}
 					else {
 						s += 300;
+					}
+				}
+
+				if (isEnemy && u.mines > 0 && u.onGround) {
+					Rect expl( u.position + Vec2( 0, props.mineSize.y*0.5 ), props.mineExplosionParams.radius );
+					int dmg = 50 * (min( 2, u.mines ) + (u.hasWeapon && u.weapon.type == ROCKET_LAUNCHER ? 1 : 0));
+					if (expl.Intersects( GetUnitRect( self ) ) /*&& dmg >= self.health*/ ) {
+						s -= dmg >= self.health?4000:1000;
 					}
 				}
 
@@ -1570,8 +1631,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 					if (self.weapon.params.explosion.damage) {
 						range = max( range, self.weapon.params.explosion.radius + 1 );
 					}
-					//if (!unit.hasWeapon) range = 7;
-					//range = 0;
+					if (selfScore > enemyScore && !simpleMap) range = 20;
 					if (dist > range) {
 						if (visible) {
 							s += (1 - dist / maxDist) * 2300;
@@ -1586,13 +1646,13 @@ UnitAction MoveHelper( const Unit & unit ) {
 					}
 				}
 				else {
-					range = 2.5;
+					range = 4;
 					if (dist < range /*&& (self.position.y - u.position.y) < 1.8*/) {
-						s -= (1 - dist / max( range, 1. )) * 2300;
+						s -= (1 - dist / max( range, 1. )) * 2000;
 						if (dist < 2 + DBL_EPSILON) s -= 1000;
 					}
 					else {
-						s += (1 - dist / maxDist) * 300;
+						s += (1 - dist / maxDist) * 1000;
 					}
 				}
 			}
@@ -1613,16 +1673,14 @@ UnitAction MoveHelper( const Unit & unit ) {
 			s += selfScore <= enemyScore?(isStuck?2000:500):0;
 		}
 		if (get<1>( health ) && GetActionDir(get<2>( health )) == actionDir) {
-			s += 70 * (100-unit.health) + 100;
-
-			//Vec2 center = GetCenter( *get<1>( health ) );
-			//pair<double, const Unit *> enemy = NearestUnit( center, game.units, unit.id, true, true );
-			//if (enemy.second && enemy.first < 4) {
-
-			//}
+			s += 100 * (100-unit.health) + 100;
 		}
 		if (get<1>( weapon ) && GetActionDir(get<2>( weapon )) == actionDir) {
 			s += unit.hasWeapon?1500:4000;
+		}
+		if (get<1>( mine ) && unit.mines < 2 && (get<1>( mine ))->position.Dist( GetCenter(unit) ) < 5 /*&& GetCenter(unit).y > GetCenter(*mine.second).y*/ && GetActionDir( get<2>( mine ) ) == actionDir) {
+			s += 1500;
+			DBG( debug.drawLine( GetCenter( unit ), GetCenter( *get<1>( mine ) ), 0.1, ColorFloat( 1, 1, 0, 0.5 ) ) );
 		}
 
 		if (score[i] > score[best]) {
@@ -1640,13 +1698,13 @@ UnitAction MoveHelper( const Unit & unit ) {
 	}
 #endif //  DEBUG
 
-	mhClock.End();
+	moveClock.End();
 
 	return GetAction( best );
 }
 
 UnitAction MoveHelperOld( const Unit & unit ) {
-	mhClock.Begin();
+	moveClock.Begin();
 	static const double moveDelta = 10. * (1. / 60.);
 
 	Vec2 center = unit.position + Vec2( 0, unit.size.y*0.5 );
@@ -1778,7 +1836,7 @@ UnitAction MoveHelperOld( const Unit & unit ) {
 	DBG( DrawPath( PredictPath2( unit, action, 100, game.units ) ) );
 #endif
 
-	mhClock.End();
+	moveClock.End();
 
 	return action;
 }
@@ -1799,22 +1857,34 @@ UnitAction Quickstart( const Unit &unit ) {
 	aim = AimHelper( unit, *enemy.second );
 	action.aim = aim.aim;
 	action.shoot = aim.shoot;
-	action.plantMine = aim.plantMine;
+	//action.plantMine = aim.plantMine;
+
+	//action.plantMine = TryPlantMine( unit );
+	//if (action.plantMine) action.shoot = false;
+
+	bpair plant = TryPlantMine2( unit );
+	if (plant.first) {
+		action.plantMine = true;
+		action.shoot = false;
+		action.jump = false;
+		action.jumpDown = false;
+		action.velocity = 0;
+		if (plant.second) {
+			action.aim = Vec2( 0, -1 );
+			action.shoot = true;
+		}
+	}
 
 	if (weapon.second && r.Intersects( GetRect( *weapon.second ) ) && enemy.first > 3) {
 		action.swapWeapon = true;
 	}
-
-	//if (!action.shoot) {
-	//	action.plantMine = TryPlantMine( unit );
-	//}
 
 	if (action.jump && unit.jumpState.maxTime < props.unitJumpTime *0.5 && GetTileAt( unit.position - Vec2( 0, moveDelta ) ) == PLATFORM && GetTileAt( unit.position ) == EMPTY) {
 		action.jump = false;
 		action.jumpDown = false;
 	}
 
-	DBG( debug.print( action.toString() ) );
+	DBG( debug.print( action.toString() + VARDUMP(simpleMap) + VARDUMP(unit.onGround) + VARDUMP(unit.mines)));
 
 	return action;
 }
@@ -1887,10 +1957,10 @@ UnitAction MyStrategy::getAction(const Unit &unit, const Game & _game, Debug & _
 		if (game.currentTick % 200 == 0) {
 			std::cout << std::endl;
 			std::cout << "Tick " << game.currentTick;
-			std::cout << " Pathfinding: " << navigate.clock.GetTotalMsec();
-			std::cout << " Movement: " << mhClock.GetTotalMsec();
+			std::cout << " Pathfinding: " << navClock.GetTotalMsec();
+			std::cout << " Movement: " << moveClock.GetTotalMsec();
 			std::cout << " Dodge: " << dodgeClock.GetTotalMsec();
-			std::cout << " HitPredict: " << hpClock.GetTotalMsec();
+			std::cout << " HitPredict: " << hitClock.GetTotalMsec();
 			std::cout << " Mines: " << mineClock.GetTotalMsec();
 			std::cout << " Total: " << totalClock.GetTotalMsec();
 			std::cout << std::endl;
@@ -1902,6 +1972,9 @@ UnitAction MyStrategy::getAction(const Unit &unit, const Game & _game, Debug & _
 	//benchmark( unit, game, debug );
 	UnitAction action = Quickstart( unit );
 	//UnitAction action;
+
+	//navigate.InitPath( unit );
+	//UnitAction action = navigate.FindPath()
 
 	//if (prevGame.currentTick != game.currentTick) {
 	//	prevGame = game;

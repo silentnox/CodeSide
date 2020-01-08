@@ -46,11 +46,11 @@ public:
 	UnitAction action;
 
 	// simulator
-	int numHealed = 0;
-	int overHeal = 0;
-	int lastDamage = 0;
-	bool touchUnit = false;
-	int numTriggered = 0;
+	//int numHealed = 0;
+	//int overHeal = 0;
+	//int lastDamage = 0;
+	//bool touchUnit = false;
+	//int numTriggered = 0;
 
 	bool ignoreBullet = false;
 
