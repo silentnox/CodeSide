@@ -31,10 +31,15 @@ num = int(sys.argv[1])
 clname1 = str(sys.argv[2])
 clname2 = str(sys.argv[3])
 
-if len(sys.argv) == 5:
+if len(sys.argv) >= 5:
     team_size = int(sys.argv[4])
 else:
     team_size = 1
+
+if len(sys.argv) >= 6:
+    map_name = str(sys.argv[5])
+else:
+    map_name = 'Simple'
 
 replays = True
 
@@ -49,10 +54,10 @@ if os.path.exists('batch_preset.json'):
     config = load_json('batch_preset.json')
     config['options_preset']['Custom']['properties']['team_size'] = team_size
     config['options_preset']['Custom']['properties']['max_tick_count'] = 3600
-    config['options_preset']['Custom']['level'] = 'Complex'
+    config['options_preset']['Custom']['level'] = map_name
 else:
     config = {}
-    config['options_preset'] = {'Custom': {'level': 'Simple', 'properties': None}}
+    config['options_preset'] = {'Custom': {'level': map_name, 'properties': None}}
 
 config['players'] = []
 

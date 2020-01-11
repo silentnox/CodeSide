@@ -1019,43 +1019,43 @@ public:
 
 	}
 
-	// dijkstra algorithm on a 2d weight matrix with agent
-	template<int NUM_CELLS, int WIDTH, typename Agent>
-	static void WaveFill( int index, std::vector<int> & preds, std::vector<int> & dist, Agent basic ) {
-		dist.resize( NUM_CELLS, INT_MAX );
-		preds.resize( NUM_CELLS, -1 );
+	//// dijkstra algorithm on a 2d weight matrix with agent
+	//template<int NUM_CELLS, int WIDTH, typename Agent>
+	//static void WaveFill( int index, std::vector<int> & preds, std::vector<int> & dist, Agent basic ) {
+	//	dist.resize( NUM_CELLS, INT_MAX );
+	//	preds.resize( NUM_CELLS, -1 );
 
-		Agent agents[ NUM_CELLS ];
+	//	Agent agents[ NUM_CELLS ];
 
-		std::priority_queue< ipair, std::vector <ipair>, std::greater<ipair> > pq;
+	//	std::priority_queue< ipair, std::vector <ipair>, std::greater<ipair> > pq;
 
-		pq.emplace( 0, index );
-		dist[index] = 0;
-		preds[index] = -1;
-		agents[index] = basic;
+	//	pq.emplace( 0, index );
+	//	dist[index] = 0;
+	//	preds[index] = -1;
+	//	agents[index] = basic;
 
-		while (!pq.empty()) {
-			int u = pq.top().second;
-			pq.pop();
+	//	while (!pq.empty()) {
+	//		int u = pq.top().second;
+	//		pq.pop();
 
-			const int nb[] = { u - 1,u + 1,u - WIDTH,u + WIDTH };
+	//		const int nb[] = { u - 1,u + 1,u - WIDTH,u + WIDTH };
 
-			for (int v : nb) {
-				if (v < 0 || v > NUM_CELLS - 1) continue;
-				if (v % WIDTH == WIDTH - 1 && u % WIDTH == 0) continue;
-				if (u % WIDTH == WIDTH - 1 && v % WIDTH == 0) continue;
+	//		for (int v : nb) {
+	//			if (v < 0 || v > NUM_CELLS - 1) continue;
+	//			if (v % WIDTH == WIDTH - 1 && u % WIDTH == 0) continue;
+	//			if (u % WIDTH == WIDTH - 1 && v % WIDTH == 0) continue;
 
-				int d = dist[u] + agents[v](agents[u],v%WIDTH,v/WIDTH);
-				if (dist[v] > d) {
-					dist[v] = d;
-					preds[v] = u;
-					pq.emplace( d, v );
-				}
-			}
+	//			int d = dist[u] + agents[v](agents[u],v%WIDTH,v/WIDTH);
+	//			if (dist[v] > d) {
+	//				dist[v] = d;
+	//				preds[v] = u;
+	//				pq.emplace( d, v );
+	//			}
+	//		}
 
-		}
+	//	}
 
-	}
+	//}
 
 	template<int NUM_CELLS, int WIDTH>
 	static void WaveFill2( int index, const std::vector<int> & costs, std::vector<int> & preds, std::vector<int> & dist, const int step = 1 ) {
