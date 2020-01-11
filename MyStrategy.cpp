@@ -223,7 +223,7 @@ public:
 
 	vector<int> preds;
 	vector<int> dists;
-	vector<int> bfs,bfs2;
+	vector<int> bfs, bfs2;
 	Vec2 origin;
 	Rect rect;
 	JumpState jumpState;
@@ -235,22 +235,19 @@ public:
 			for (int j = 0; j < 30; j++) {
 				Tile t = Tiles[i][j];
 				//bfs[Tid( i, j )] = 0;
-				if(t == Tile::WALL) {
+				if (t == Tile::WALL) {
 					bfs[Tid( i, j )] = 1000;
 				}
-				//if(t == Tile::WALL || t == Tile::PLATFORM) {
-				if(Tiles[i][j] != EMPTY && Tiles[i][j] != JUMP_PAD && Tiles[i][j+1] == EMPTY) {
+				if (t == Tile::WALL || t == Tile::PLATFORM) {
 					int h = 1;
 					int o = j;
 					while (Tiles[i][o + h] == Tile::EMPTY) {
 						if (o + h > 29) break;
 						if (h > 6) {
 							bfs[Tid( i, o + h )] = 1000;
-							//bfs[Tid( i, o + h )] = h;
 							o += h;
 							h = 1;
 						}
-						//bfs[Tid( i, o + h )] = h;
 						h++;
 					}
 				}
@@ -258,20 +255,20 @@ public:
 				//	//bfs[Tid( i - 1, j )] = 1;
 				//	//bfs[Tid( i + 1, j )] = 1;
 				//	if (Tiles[i - 1][j] == PLATFORM) {
-				//		bfs[Tid( i - 1, j )] = 1000;
-				//		bfs[Tid( i - 1, j-1 )] = 1000;
-				//		bfs[Tid( i - 1, j-2 )] = 1000;
+				//		bfs[Tid( i - 1, j )] = 1;
+				//		bfs[Tid( i - 1, j-1 )] = 1;
+				//		bfs[Tid( i - 1, j-2 )] = 1;
 				//	}
 				//	if (Tiles[i + 1][j] == PLATFORM) {
-				//		bfs[Tid( i + 1, j )] = 1000;
-				//		bfs[Tid( i + 1, j-1 )] = 1000;
-				//		bfs[Tid( i + 1, j-2 )] = 1000;
+				//		bfs[Tid( i + 1, j )] = 1;
+				//		bfs[Tid( i + 1, j-1 )] = 1;
+				//		bfs[Tid( i + 1, j-2 )] = 1;
 				//	}
 				//}
-				if (t == Tile::JUMP_PAD) {
-					bfs[Tid( i, j )] = 8;
-					bfs[Tid( i, j+1 )] = 8;
-				}
+				//if (t == Tile::JUMP_PAD) {
+				//	bfs[Tid( i, j )] = 5;
+				//	bfs[Tid( i, j+1 )] = 5;
+				//}
 			}
 		}
 	}
@@ -280,8 +277,9 @@ public:
 		bfs2 = bfs;
 		for (const Unit & u : game.units) {
 			if (u.id != unit.id) {
-				bfs2[Tid( (int)floor( u.position.x ), (int)floor( u.position.y ) ) ] = 1;
-				bfs2[Tid( (int)floor( u.position.x ), (int)floor( u.position.y )+1 )] = 1;
+				bfs2[Tid( (int)floor( u.position.x ), (int)floor( u.position.y ) )] = 1000;
+				bfs2[Tid( (int)floor( u.position.x ), (int)floor( u.position.y ) + 1 )] = 1000;
+				//bfs2[Tid( (int)floor( u.position.x ), (int)floor( u.position.y ) + 2 )] = 1000;
 			}
 		}
 	}
@@ -294,10 +292,10 @@ public:
 		rect = GetUnitRect( u );
 		jumpState = u.jumpState;
 		int id = Tid( (int)floor( from.x ), (int)floor( from.y ) );
-		
+
 		preds.clear();
 		dists.clear();
-		
+
 		if (!Rect( 0, 0, 40, 30 ).Contains( from )) return;
 
 		InitTemp( u );
@@ -307,7 +305,7 @@ public:
 #ifdef  DEBUG
 		for (int i = 0; i < 40; i++) {
 			for (int j = 0; j < 30; j++) {
-				if (bfs2[Tid(i,j)] > 1) debug.drawRect( TileRects[i][j], ColorFloat( 1, 0, 0, 0.1 ) );
+				if (bfs2[Tid( i, j )] > 1) debug.drawRect( TileRects[i][j], ColorFloat( 1, 0, 0, 0.2 ) );
 			}
 		}
 #endif //  DEBUG
@@ -328,7 +326,6 @@ public:
 
 		int id = Tid( (int)floor( target.x ), (int)floor( target.y ) );
 		Tile tile = GetTileAt( target );
-
 		vint path = Graph::PredcessorToPath( id, preds );
 
 		if (path.size() < 2) return pair<int, UnitAction>( -1, UnitAction() );
@@ -343,13 +340,13 @@ public:
 		int idx = 0;
 		Vec2 a( rect.Min.x, rect.Max.y );
 		Vec2 b( rect.Max.x, rect.Max.y );
-		Rect r( rect.Center(), max(jumpState.maxTime*10,2.) );
+		Rect r( rect.Center(), 6 );
 		while (idx < path.size()) {
 			ipair node = Tcd( path[idx] );
 			Rect tr = TileRects[node.first][node.second];
 			Vec2 cent = tr.Center()/*-Vec2(0,0.45)*/;
-			Tile t = Tiles[node.first][node.second];
-			if (!tr.Intersects( r ) || !IsVisible(rect.Center(),cent) || !IsVisible( rect.Center() + Vec2(0,0.9), cent ) || t == JUMP_PAD || (t == LADDER && idx > 2) ) {
+			//if (!tr.Intersects( r ) || !IsVisible( a, cent ) || !IsVisible( b, cent ) || !IsVisible( origin/*-Vec2(0,moveDelta*2)*/, cent ) ) {
+			if (!tr.Intersects( r ) || !IsVisible( rect.Center(), cent ) || GetTileAt( cent ) == JUMP_PAD || ( GetTileAt( cent ) == LADDER && idx > 2) ) {
 				if (idx > 1)idx--;
 				break;
 			}
@@ -358,33 +355,32 @@ public:
 		if (idx == path.size()) idx--;
 		node2 = Tcd( path[idx] );
 
-		Vec2 center = TileRects[node2.first][node2.second].Center() - Vec2(0,0.5);
+		Vec2 center = TileRects[node2.first][node2.second].Center() - Vec2( 0, 0.5 );
 
 		DBG( debug.drawLine( rect.Center(), center ) );
-		DBG( debug.drawWireRect( TileRects[node2.first][node2.second], 0.1, IsVisible( rect.Center(), TileRects[node2.first][node2.second].Center() )?ColorFloat(1,1,1,1):ColorFloat(1,0,0,1) ) );
+		DBG( debug.drawWireRect( TileRects[node2.first][node2.second] ) );
+		//DBG( debug.drawLine( origin, origin + origin.DirTo(center) * RaycastLevel(origin,origin.DirTo(center) ).second, 0.05, ColorFloat(1,0,0,1) ) );
+		//DBG( debug.drawLine( a, a + a.DirTo(center) * RaycastLevel(a,a.DirTo(center) ).second, 0.05, ColorFloat(1,0,0,1) ) );
+		//DBG( debug.drawLine( b, b + b.DirTo(center) * RaycastLevel(b,b.DirTo(center) ).second, 0.05, ColorFloat(1,0,0,1) ) );
+
 		double groundDist = RaycastLevel( origin, Vec2( 0, -1 ) ).second;
 
 		//double dx = node2.first - node1.first;
 		//double dy = node2.second - node1.second;
 		double dx = center.x - origin.x;
 		double dy = center.y - origin.y;
-		int ox = Sign( dx, moveDelta );
-		int oy = Sign( dy, moveDelta );
-
-		if (GetTileAt( origin + Vec2( -0.45, -moveDelta*3 ) ) == WALL && oy < 0 && ox == 0) ox = 1;
-		if (GetTileAt( origin + Vec2( 0.45, -moveDelta*3 ) ) == WALL && oy < 0 && ox == 0) ox = -1;
-		if (GetTileAt( origin + Vec2( -0.45, 1.8 + moveDelta*3 ) ) == WALL && oy > 0 && ox == 0) ox = 1;
-		if (GetTileAt( origin + Vec2( 0.45, 1.8 + moveDelta*3 ) ) == WALL && oy > 0 && ox == 0) ox = -1;
+		int ox = Sign( dx, 0.05 );
+		int oy = Sign( dy, 0.1 );
 
 		//ox = Sign( center.x - origin.x, 0.05 );
 		//oy = Sign( center.y - origin.y, 0.1 );
 
 		//bool jump = GetTileAt( origin ) == EMPTY && jumpState.maxTime > 1e-3;
 		bool jump = false;
-		jump |= ox < 0 && oy >= 0 &&  GetTileAt( origin + Vec2( -1, 0 ) ) == WALL;
-		jump |= ox > 0 && oy >= 0 && GetTileAt( origin + Vec2( 1, 0 ) ) == WALL;
-		//jump |= ox < 0 && GetTileAt( origin + Vec2( -1, -1 ) ) == EMPTY && abs(dx) > abs(dy);
-		//jump |= ox > 0 && GetTileAt( origin + Vec2( 1, -1 ) ) == EMPTY && abs( dx ) > abs( dy );
+		jump |= ox < 0 && GetTileAt( origin + Vec2( -1, 0 ) ) == WALL;
+		jump |= ox > 0 && GetTileAt( origin + Vec2( 1, 0 ) ) == WALL;
+		//jump |= ox < 0 && GetTileAt( origin + Vec2( -1, -1 ) ) == EMPTY && min( groundDist, abs( dx ) ) < abs( dx );
+		//jump |= ox > 0 && GetTileAt( origin + Vec2( 1, -1 ) ) == EMPTY && min( groundDist, abs( dx ) ) < abs( dx );
 		jump |= oy >= 0 && GetTileAt( center + Vec2( 0, -1 ) ) == EMPTY;
 
 		if (ox > 0) action.velocity = 10;
@@ -433,7 +429,7 @@ public:
 		get<1>( nearest ) = nullptr;
 		for (const LootBox & l : items) {
 			if (l.item.type != type) continue;
-			if (l.item.type == Item::WEAPON && weaponType != -1 && !IsBetterWeapon((WeaponType)weaponType, l.item.weaponType)) continue;
+			if (l.item.type == Item::WEAPON && weaponType != -1 && !IsBetterWeapon( (WeaponType)weaponType, l.item.weaponType )) continue;
 			//pair<int, UnitAction> reach = FindPath( GetCenter( l ) );
 			int dist = GetDist( GetCenter( l ) );
 			if (dist < get<0>( nearest )) {
@@ -1505,28 +1501,33 @@ UnitAction MoveHelper( const Unit & unit ) {
 
 	navigate.InitPath( unit );
 
-	Vec2 nearestEnemyPos = NearestUnit( unit.position, game.units, unit.id, true ).second->position + Vec2( 0, 0.9 );
+	const Unit * enemy = NearestUnit( unit.position, game.units, unit.id, true ).second;
+	Vec2 nearestEnemyPos = enemy->position + Vec2( 0, 0.9 );
 
-	vector<LootBox> lootBoxes;
-	for (const LootBox & l : game.lootBoxes) {
-		if (l.item.type == Item::MINE) continue;
-		Vec2 enemyPos = NearestUnit( GetCenter( l ), game.units, unit.id, true ).second->position;
-		bfpair ray1 = RaycastLevel( GetCenter( unit ), GetCenter( unit ).DirTo( GetCenter( l ) ), GetRect( l ) );
-		bfpair ray2 = RaycastLevel( enemyPos, enemyPos.DirTo( GetCenter( l ) ), GetRect( l ) );
+	const LootBox * enemyHealthpack = NearestLootbox( nearestEnemyPos, nearestEnemyPos, game.lootBoxes, Item::HEALTH_PACK, -1, true ).second;
+	//const LootBox * enemyHealthpack = NearestLootbox( nearestEnemyPos, nearestEnemyPos, game.lootBoxes, Item::HEALTH_PACK, -1, true ).second;
 
-		if (ray1.first >= ray2.first && ray2.first == false) {
-			lootBoxes.emplace_back( l );
-		}
-		else if (ray1.second < ray2.second) {
-			lootBoxes.emplace_back( l );
-		}
-	}
+	//vector<LootBox> lootBoxes;
+	//for (const LootBox & l : game.lootBoxes) {
+	//	if (l.item.type == Item::MINE) continue;
+	//	Vec2 enemyPos = NearestUnit( GetCenter( l ), game.units, unit.id, true ).second->position;
+	//	bfpair ray1 = RaycastLevel( GetCenter( unit ), GetCenter( unit ).DirTo( GetCenter( l ) ), GetRect( l ) );
+	//	bfpair ray2 = RaycastLevel( enemyPos, enemyPos.DirTo( GetCenter( l ) ), GetRect( l ) );
+
+	//	if (ray1.first >= ray2.first && ray2.first == false) {
+	//		lootBoxes.emplace_back( l );
+	//	}
+	//	else if (ray1.second < ray2.second) {
+	//		lootBoxes.emplace_back( l );
+	//	}
+	//}
 
 	tuple<int, const LootBox*, UnitAction> health = navigate.NearestLootbox( game.lootBoxes, Item::HEALTH_PACK );
 	tuple<int, const LootBox*, UnitAction> weapon = navigate.NearestLootbox( game.lootBoxes, Item::WEAPON, unit.hasWeapon ? unit.weapon.type : -1 );
 	tuple<int, const LootBox*, UnitAction> mine = navigate.NearestLootbox( game.lootBoxes, Item::MINE );
 	//pair<double, const LootBox*> mine = NearestLootbox( unit.position, unit.position, game.lootBoxes, Item::MINE );
 	pair<int, UnitAction> enemyReach = navigate.FindPath( nearestEnemyPos, true );
+	pair<int, UnitAction> enemyHpReach = enemyHealthpack? navigate.FindPath( enemyHealthpack->position, true ): pair<int, UnitAction>();
 
 	for (int i = 0; i < 9; i++) {
 		sim.currentTick = 0;
@@ -1574,46 +1575,67 @@ UnitAction MoveHelper( const Unit & unit ) {
 			double wallDistY = min( floorDist, ceilDist );
 			double wallDist = min( wallDistX, wallDistY );
 
-			bool isFloat = !self.onGround && (self.jumpState.maxTime < 1e-5 || !self.jumpState.canCancel);
+			const bool isFloat = !self.onGround && (self.jumpState.maxTime < 1e-5 || !self.jumpState.canCancel);
 
 			s += self.health * 10000;
 
-			double maxDist = 50;
+			const double maxDist = 50;
 
-			int numVisible = 0;
+			//int numVisible = 0;
 
 			if (self.onLadder) s += 200;
 			if (self.onGround && GetTileAt( self.position - Vec2( 0, -1 ) ) == PLATFORM) s += 200;
 
-			if (self.position.y < 5) s -= 1000;
+			//if (self.position.y < 5) s -= 1000;
 
 			for (const Unit & u : sim.units) {
 				if (u.id == self.id) continue;
 
-				bool isEnemy = u.playerId != unit.playerId;
+				const bool isEnemy = u.playerId != unit.playerId;
 
-				double dist = center.Dist( GetCenter( u ) );
-				bool visible = RaycastLevel( center, center.DirTo( GetCenter( u ) ), GetRect( u ) ).first;
+				const double dist = center.Dist( GetCenter( u ) );
+				const bool visible = RaycastLevel( center, center.DirTo( GetCenter( u ) ), GetRect( u ) ).first;
+
+				//double f = dist / maxDist;
+				//double f2 = 1. - dist / maxDist;
+				//if (!visible) {
+				//	f *= 0.5;
+				//	f2 *= 0.5;
+				//}
+
+				//if (isEnemy && u.hasWeapon) {
+				//	bool rl = u.weapon.type == ROCKET_LAUNCHER;
+				//	if (rl) {
+				//		if (wallDistX < 2) s -= (1. - wallDistX / 2.) * isFloat?20000:4000 * f2;
+				//		if (floorDist < 2) s -= 3000 * f2;
+				//	}
+				//	if (isFloat) s -= rl ? 1000 : 1000 * f2;
+				//	if (self.position.y < u.position.y) {
+				//		s -= (u.position.y - self.position.y) * 100;
+				//	}
+				//	else {
+				//		s += 300;
+				//	}
+				//}
 
 				double f = dist / maxDist;
 				double f2 = 1. - dist / maxDist;
-				if (!visible) {
-					f *= 0.2;
-					f2 *= 0.2;
+				if (visible) {
+					f *= 2;
+					f2 *= 2;
 				}
 
-				if (isEnemy && u.hasWeapon) {
+				if (visible && isEnemy && u.hasWeapon) {
 					bool rl = u.weapon.type == ROCKET_LAUNCHER;
 					if (rl) {
-						if (wallDistX < 2) s -= (1. - wallDistX / 2.) * 4000 * f2;
-						if (dist < 8 && floorDist < 2) s -= 3000 * f2;
+						if (wallDistX < 2) s -= (1. - wallDistX / 2.) * 300 * f2;
 					}
-					if (isFloat) s -= rl ? 10000 : 1000 * f2;
+					if (isFloat) s -= rl ? 2000 : 500 * f2;
 					if (self.position.y < u.position.y) {
 						s -= (u.position.y - self.position.y) * 100;
 					}
 					else {
-						s += 500;
+						s += 300;
 					}
 				}
 
@@ -1621,13 +1643,13 @@ UnitAction MoveHelper( const Unit & unit ) {
 					Rect expl( u.position + Vec2( 0, props.mineSize.y*0.5 ), props.mineExplosionParams.radius );
 					int dmg = 50 * (min( 2, u.mines ) + (u.hasWeapon && u.weapon.type == ROCKET_LAUNCHER ? 1 : 0));
 					if (expl.Intersects( GetUnitRect( self ) ) /*&& dmg >= self.health*/) {
-						s -= dmg >= self.health ? 10000000 : 1000;
+						s -= dmg >= self.health ? (!isFloat? 4000: 4000) : 1000;
 					}
 				}
 
 				double range = 0;
 				if (u.playerId != self.playerId) {
-					if (visible) numVisible++;
+					//if (visible) numVisible++;
 					if (u.hasWeapon) {
 						double weapRange[] = { 5, 5, 5 };
 						range = weapRange[u.weapon.type];
@@ -1641,7 +1663,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 					if (self.weapon.params.explosion.damage) {
 						range = max( range, self.weapon.params.explosion.radius + 1 );
 					}
-					if (selfScore < enemyScore && isStuck && game.currentTick > 3000) range = 3;
+					//if (selfScore < enemyScore && isStuck && game.currentTick > 3000) range = 3;
 					//if (selfScore > enemyScore && !simpleMap) range = 20;
 					if (dist > range) {
 						if (visible) {
@@ -1681,14 +1703,15 @@ UnitAction MoveHelper( const Unit & unit ) {
 		//s = 0;
 
 		if (GetActionDir( enemyReach.second ) == actionDir && unit.hasWeapon) {
-			s += selfScore <= enemyScore ? (isStuck ? 2000 : 500) : 500;
-			if (selfScore < enemyScore && isStuck && game.currentTick > 3000) s += 2000;
+			s += selfScore <= enemyScore ? (isStuck ? 500 : 500) : 500;
+			//if (selfScore < enemyScore && isStuck && game.currentTick > 3000) s += 2000;
 		}
 		if (get<1>( health ) && GetActionDir( get<2>( health ) ) == actionDir) {
+			//s += 120 * (100 - unit.health) + 500;
 			s += 100 * (100 - unit.health) + 100;
 		}
 		if (get<1>( weapon ) && GetActionDir( get<2>( weapon ) ) == actionDir) {
-			s += unit.hasWeapon ? 2000 : 6000;
+			s += unit.hasWeapon ? 1500 : 4000;
 		}
 		if (get<1>( mine ) && unit.mines < 2 && (get<1>( mine ))->position.Dist( GetCenter( unit ) ) < 3 /*&& GetCenter(unit).y > GetCenter(*mine.second).y*/ && GetActionDir( get<2>( mine ) ) == actionDir) {
 			s += 1500;
