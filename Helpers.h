@@ -82,8 +82,8 @@ inline double Sign( double d, double eps = 0. ) {
 inline double AngleDiff( double a, double b ) {
 	double diff = b - a;
 	//return diff > M_PI ? diff - M_PI : diff;
-	if (diff > M_PI) return 2 * M_PI - diff;
-	if (diff < -M_PI) return 2 * M_PI + diff;
+	if (diff > M_PI) return diff - 2 * M_PI;
+	if (diff < -M_PI) return diff + 2 * M_PI;
 	return diff;
 }
 

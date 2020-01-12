@@ -346,7 +346,7 @@ public:
 			Rect tr = TileRects[node.first][node.second];
 			Vec2 cent = tr.Center()/*-Vec2(0,0.45)*/;
 			//if (!tr.Intersects( r ) || !IsVisible( a, cent ) || !IsVisible( b, cent ) || !IsVisible( origin/*-Vec2(0,moveDelta*2)*/, cent ) ) {
-			if (!tr.Intersects( r ) || !IsVisible( rect.Center(), cent ) || GetTileAt( cent ) == JUMP_PAD || ( GetTileAt( cent ) == LADDER && idx > 2) ) {
+			if (!tr.Intersects( r ) || !IsVisible( rect.Center(), cent ) || (GetTileAt( cent ) == JUMP_PAD && cent.y >= origin.y) || ( GetTileAt( cent ) == LADDER && idx > 2) ) {
 				if (idx > 1)idx--;
 				break;
 			}
@@ -1422,24 +1422,32 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 
 	const double aimSpeed = unit.weapon.params.aimSpeed * (1. / 60.);
 
+	const double spreadFactor = unit.weapon.spread / unit.weapon.params.maxSpread;
+
 	bool smooth = false;
-	if (abs(angleDelta) < Rad(20) && abs(angleDelta) > aimSpeed ) {
-		aim = lastAim.Rotate( Sign( angleDelta ) * aimSpeed );
+	if (abs(angleDelta) < Rad(40) && abs(angleDelta) > aimSpeed && spreadFactor < 1.0) {
+		aim = lastAim.Rotate( -Sign( angleDelta ) * aimSpeed );
 		smooth = true;
 	}
 
 	Unit self = unit;
 	self.weapon.spread += abs( angleDelta );
+	self.weapon.spread = min( self.weapon.spread, self.weapon.params.maxSpread );
 
 	double hc = HitChance( GetUnitRect( predictPos ), center, aim, self.weapon );
 	double hcLast = HitChance( GetUnitRect( predictPos ), center, lastAim, unit.weapon );
 
 	double _hc = hc;
 	Vec2 _aim = aim;
+	bool keep = false;
 	if (hcLast > hc-DBL_EPSILON && abs(angleDelta) < Rad(6) ) {
 		hc = hcLast;
 		aim = lastAim;
+		self.weapon.spread = unit.weapon.spread;
+		keep = true;
 	}
+
+
 
 	predictRes hcSelf, hcAlly, hcEnemy1, hcEnemy2;
 	bool scdEnemy = false;
@@ -1447,7 +1455,7 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 	for (const Unit & u : game.units) {
 		bool isSelf = unit.id == u.id;
 		bool isAlly = u.playerId == unit.playerId;
-		predictRes pred = HitPredict( unit, aim, u, isSelf, 9, !isAlly );
+		predictRes pred = HitPredict( self, aim, u, isSelf, 9, !isAlly );
 		if (isSelf) hcSelf = pred;
 		else if (isAlly) hcAlly = pred;
 		else {
@@ -1457,7 +1465,9 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 		double deltaHp = (u.health - pred.avgHealth) + (pred.numKills/(double)pred.numTraces)*1000;
 		avgHp += isAlly ? -deltaHp*1.4 : deltaHp;
 	}
-	bool shoot = unit.weapon.type == ROCKET_LAUNCHER/* || unit.weapon.type == PISTOL*/ ? avgHp > 0:avgHp >= 0 && hc > 0;
+	bool shoot = unit.weapon.type == ROCKET_LAUNCHER? avgHp > 0:avgHp >= 0 && hc > 0;
+	//bool shoot = avgHp >= 0 && hc > 0;
+	if (unit.weapon.type == PISTOL && avgHp == 0 && spreadFactor > 0.6) shoot = false;
 	//bool shoot = true;
 	//if (unit.weapon.type == ROCKET_LAUNCHER) {
 	//	if (hcEnemy1.hitChance + hcEnemy2.hitChance < 0.15 + DBL_EPSILON) shoot = false;
@@ -1479,9 +1489,12 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 #ifdef DEBUG
 	debug.drawRect( Rect( predictPos, 0.15 ), ColorFloat( 1, 1, 1, 1 ) );
 	debug.drawLine( enemy.position, predictPos );
-	//debug.print( "weapon: hc: " + str( _hc ) + " hcs: " + str( hcSelf ) + " hcl: " + str(hcLast) + VARDUMP(hcAlly) + " ang: " + str( Deg( angle ) ) + " lang: " + str(Deg(lastAngle)) + " angd: " + str( Deg( angleDelta ) ) + " spr: " + str( Deg(self.weapon.spread)) + " timer: " + str(self.weapon.fireTimer) );
+	//debug.print( "weapon: hc: " + str( _hc ) + " hcs: " + str( hcSelf.hitChance ) + " hcl: " + str(hcLast) + VARDUMP(hcAlly) + " ang: " + str( Deg( angle ) ) + " lang: " + str(Deg(lastAngle)) + " angd: " + str( Deg( angleDelta ) ) + " spr: " + str( Deg(self.weapon.spread)) + " timer: " + str(self.weapon.fireTimer) );
 	//debug.print( VARDUMP(shoot) + "hc2: " + str( hc2.hitChance ) + " " + str( hcSelf2.hitChance ) + " hc2m2: " + str( hc2.hitChance2 ) + " " + str( hcSelf2.hitChance2 ) );
-	debug.print( VARDUMP( avgHp ) + VARDUMP( shoot ) + " hc2: " + str( hcEnemy1.hitChance ) + " " + str( hcSelf.hitChance ) + VARDUMP( Deg( angleDelta ) ) + VARDUMP2( "ft",unit.weapon.fireTimer ) );
+	debug.print( VARDUMP( avgHp ) + VARDUMP(smooth) + VARDUMP(keep) + VARDUMP( shoot ) + " hc2: " + str( hcEnemy1.hitChance ) + " " + str( hcSelf.hitChance ) + VARDUMP( Deg( angleDelta ) ) + VARDUMP2( "ft",unit.weapon.fireTimer ) + VARDUMP(aimSpeed) + VARDUMP(Deg(lastAngle)) + VARDUMP(spreadFactor) );
+	debug.drawLine( center, center + aim * 3, 0.1, ColorFloat( 1, 0, 0, 1 ) );
+	debug.drawLine( center, center + aim.Rotate(-unit.weapon.spread) * 100, 0.1, ColorFloat( 1, 0, 0, 1 ) );
+	debug.drawLine( center, center + aim.Rotate( unit.weapon.spread ) * 100, 0.1, ColorFloat( 1, 0, 0, 1 ) );
 #endif
 
 	return action;
@@ -1674,7 +1687,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 						//s -= dist / range * 20;
 						//if (visible) {
 						s -= (1 - dist / max( range, 1. )) * 2000;
-						if (dist < 2 + DBL_EPSILON && u.hasWeapon) s -= 1000;
+						//if (dist < 2 + DBL_EPSILON && u.hasWeapon) s -= 1000;
 						//}
 					}
 				}
@@ -1920,7 +1933,7 @@ UnitAction Quickstart( const Unit &unit ) {
 	}
 
 	DBG( debug.print( action.toString() + VARDUMP(simpleMap) + VARDUMP(unit.onGround) + VARDUMP(unit.mines)));
-	DBG( debug.print( VARDUMP(selfScore) + VARDUMP(enemyScore) + VARDUMP(isStuck) ) );
+	DBG( debug.print( VARDUMP(selfScore) + VARDUMP(enemyScore) + VARDUMP(isStuck) + VARDUMP(teamSize) + VARDUMP(enemyTeamSize) ) );
 
 	return action;
 }
