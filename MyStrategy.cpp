@@ -169,7 +169,7 @@ int FindUnit( const Unit & u, const vector<Unit> & units ) {
 int WeapScore( WeaponType weap ) {
 	switch (weap) {
 	case WeaponType::PISTOL:
-		return mode2x2?2:4;
+		return teamSize>1?2:4;
 	case WeaponType::ASSAULT_RIFLE:
 		return 1;
 	case WeaponType::ROCKET_LAUNCHER:
@@ -413,7 +413,7 @@ public:
 		if (draw) {
 			for (int id : path) {
 				ipair coord = Navigate::Tcd( id );
-				debug.drawRect( TileRects[coord.first][coord.second], ColorFloat( 0, 1, 0, 0.5 ) );
+				debug.drawRect( TileRects[coord.first][coord.second], ColorFloat( 0, 1, 0, 0.2 ) );
 			}
 		}
 #endif //  DEBUG
@@ -1492,9 +1492,9 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 	//debug.print( "weapon: hc: " + str( _hc ) + " hcs: " + str( hcSelf.hitChance ) + " hcl: " + str(hcLast) + VARDUMP(hcAlly) + " ang: " + str( Deg( angle ) ) + " lang: " + str(Deg(lastAngle)) + " angd: " + str( Deg( angleDelta ) ) + " spr: " + str( Deg(self.weapon.spread)) + " timer: " + str(self.weapon.fireTimer) );
 	//debug.print( VARDUMP(shoot) + "hc2: " + str( hc2.hitChance ) + " " + str( hcSelf2.hitChance ) + " hc2m2: " + str( hc2.hitChance2 ) + " " + str( hcSelf2.hitChance2 ) );
 	debug.print( VARDUMP( avgHp ) + VARDUMP(smooth) + VARDUMP(keep) + VARDUMP( shoot ) + " hc2: " + str( hcEnemy1.hitChance ) + " " + str( hcSelf.hitChance ) + VARDUMP( Deg( angleDelta ) ) + VARDUMP2( "ft",unit.weapon.fireTimer ) + VARDUMP(aimSpeed) + VARDUMP(Deg(lastAngle)) + VARDUMP(spreadFactor) );
-	debug.drawLine( center, center + aim * 3, 0.1, ColorFloat( 1, 0, 0, 1 ) );
-	debug.drawLine( center, center + aim.Rotate(-unit.weapon.spread) * 100, 0.1, ColorFloat( 1, 0, 0, 1 ) );
-	debug.drawLine( center, center + aim.Rotate( unit.weapon.spread ) * 100, 0.1, ColorFloat( 1, 0, 0, 1 ) );
+	//debug.drawLine( center, center + aim * 3, 0.1, ColorFloat( 1, 0, 0, 1 ) );
+	//debug.drawLine( center, center + aim.Rotate(-unit.weapon.spread) * 100, 0.1, ColorFloat( 1, 0, 0, 1 ) );
+	//debug.drawLine( center, center + aim.Rotate( unit.weapon.spread ) * 100, 0.1, ColorFloat( 1, 0, 0, 1 ) );
 #endif
 
 	return action;
@@ -1716,7 +1716,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 		//s = 0;
 
 		if (GetActionDir( enemyReach.second ) == actionDir && unit.hasWeapon) {
-			s += selfScore <= enemyScore ? (isStuck ? 500 : 500) : 500;
+			s += selfScore <= enemyScore ? (isStuck ? 2000 : 500) : 500;
 			//if (selfScore < enemyScore && isStuck && game.currentTick > 3000) s += 2000;
 		}
 		if (get<1>( health ) && GetActionDir( get<2>( health ) ) == actionDir) {
@@ -1724,11 +1724,14 @@ UnitAction MoveHelper( const Unit & unit ) {
 			s += 100 * (100 - unit.health) + 100;
 		}
 		if (get<1>( weapon ) && GetActionDir( get<2>( weapon ) ) == actionDir) {
-			s += unit.hasWeapon ? 1500 : 4000;
+			s += unit.hasWeapon ? 2000 : 4000;
 		}
 		if (get<1>( mine ) && unit.mines < 2 && (get<1>( mine ))->position.Dist( GetCenter( unit ) ) < 3 /*&& GetCenter(unit).y > GetCenter(*mine.second).y*/ && GetActionDir( get<2>( mine ) ) == actionDir) {
 			s += 1500;
 			DBG( debug.drawLine( GetCenter( unit ), GetCenter( *get<1>( mine ) ), 0.1, ColorFloat( 1, 1, 0, 0.5 ) ) );
+		}
+		if (enemyHealthpack && GetActionDir( enemyHpReach.second ) == actionDir && GetCenter(unit).Dist2( enemyHealthpack->position )-2 < nearestEnemyPos.Dist2( enemyHealthpack->position )  ) {
+			s += enemy->health < 80? 2000 : 500;
 		}
 
 		if (score[i] > score[best]) {
@@ -1739,10 +1742,13 @@ UnitAction MoveHelper( const Unit & unit ) {
 
 #ifdef  DEBUG
 	for (int i = 0; i < 9; i++) {
-		debug.drawLine( GetCenter( unit ), GetCenter( unit ) + GetActionDir( GetAction( i ) ) * 3, 0.1, ColorFloat( 1, 1, 1, (score[i] - score[worst]) / (score[best] - score[worst]) ) );
+		debug.drawLine( GetCenter( unit ), GetCenter( unit ) + GetActionDir( GetAction( i ) ) * 3, 0.1, score[i] == score[best]?ColorFloat(1,1,0,1):ColorFloat( 1, 1, 1, (score[i] - score[worst]) / (score[best] - score[worst]) ) );
 	}
 	if (get<1>( health )) {
 		debug.drawLine( GetCenter( unit ), GetCenter( *get<1>( health ) ), 0.1, ColorFloat( 0, 1, 0, 0.5 ) );
+	}
+	if (enemyHealthpack) {
+		DBG( debug.drawLine( GetCenter( *enemy ), GetCenter( *enemyHealthpack ), 0.1, ColorFloat( 0, 1, 0, 0.5 ) ) );
 	}
 #endif //  DEBUG
 
