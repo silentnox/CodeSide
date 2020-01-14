@@ -238,37 +238,35 @@ public:
 				if (t == Tile::WALL) {
 					bfs[Tid( i, j )] = 1000;
 				}
-				if (t == Tile::WALL || t == Tile::PLATFORM) {
-					int h = 1;
-					int o = j;
-					while (Tiles[i][o + h] == Tile::EMPTY) {
-						if (o + h > 29) break;
-						if (h > 6) {
-							bfs[Tid( i, o + h )] = 1000;
-							o += h;
-							h = 1;
-						}
+				//if (t == Tile::WALL || t == Tile::PLATFORM) {
+				//	int h = 1;
+				//	int o = j;
+				//	while (Tiles[i][o + h] == Tile::EMPTY) {
+				//		if (o + h > 29) break;
+				//		bfs[Tid( i, o + h )] = h;
+				//		if (h > 6) {
+				//			//bfs[Tid( i, o + h )] = 1000;
+				//			o += h;
+				//			h = 1;
+				//		}
+				//		h++;
+				//	}
+				//}
+				if (t != Tile::EMPTY && t != Tile::JUMP_PAD) {
+					int h = j+1;
+					do {
+						if (h > 29) break;
+						bfs[Tid( i, h )] = h-j;
 						h++;
-					}
+					} while (Tiles[i][h] == Tile::EMPTY);
 				}
-				//if (t == Tile::LADDER) {
-				//	//bfs[Tid( i - 1, j )] = 1;
-				//	//bfs[Tid( i + 1, j )] = 1;
-				//	if (Tiles[i - 1][j] == PLATFORM) {
-				//		bfs[Tid( i - 1, j )] = 1;
-				//		bfs[Tid( i - 1, j-1 )] = 1;
-				//		bfs[Tid( i - 1, j-2 )] = 1;
-				//	}
-				//	if (Tiles[i + 1][j] == PLATFORM) {
-				//		bfs[Tid( i + 1, j )] = 1;
-				//		bfs[Tid( i + 1, j-1 )] = 1;
-				//		bfs[Tid( i + 1, j-2 )] = 1;
-				//	}
-				//}
-				//if (t == Tile::JUMP_PAD) {
-				//	bfs[Tid( i, j )] = 5;
-				//	bfs[Tid( i, j+1 )] = 5;
-				//}
+				if (t == Tile::JUMP_PAD) {
+					bfs[Tid( i, j )] = 1000;
+					bfs[Tid( i, j+1 )] = 1000;
+					bfs[Tid( i, j+2 )] = 1000;
+					bfs[Tid( i, j-1 )] = 1000;
+					if(j>1)bfs[Tid( i, j-2 )] = 1000;
+				}
 			}
 		}
 	}
@@ -328,25 +326,35 @@ public:
 		Tile tile = GetTileAt( target );
 		vint path = Graph::PredcessorToPath( id, preds );
 
-		if (path.size() < 2) return pair<int, UnitAction>( -1, UnitAction() );
+		if (path.size() < 1) return pair<int, UnitAction>( -1, UnitAction() );
+
+		if (path.size() == 1) {
+			return pair<int, UnitAction>( 1, GetMoveAction( origin.DirTo( target ) ) );
+		}
 
 		navClock.Begin();
 
-		int dist = dists[id] * 6;
+		int dist = (path.size()-1) * 6;
 		UnitAction action;
 		ipair node1 = Tcd( path[0] );
 		ipair node2 = Tcd( path[1] );
 
+		bool nearJumppad = IsOnTile( rect.Expand(Vec2(0.5,1.5)), JUMP_PAD );
+
 		int idx = 0;
-		Vec2 a( rect.Min.x, rect.Max.y );
-		Vec2 b( rect.Max.x, rect.Max.y );
-		Rect r( rect.Center(), 6 );
+		//Rect r( rect.Center(), 6 );
+		Rect r( rect.Center(), max(ceil(jumpState.maxTime)*10,2.) );
 		while (idx < path.size()) {
 			ipair node = Tcd( path[idx] );
 			Rect tr = TileRects[node.first][node.second];
-			Vec2 cent = tr.Center()/*-Vec2(0,0.45)*/;
-			//if (!tr.Intersects( r ) || !IsVisible( a, cent ) || !IsVisible( b, cent ) || !IsVisible( origin/*-Vec2(0,moveDelta*2)*/, cent ) ) {
-			if (!tr.Intersects( r ) || !IsVisible( rect.Center(), cent ) || (GetTileAt( cent ) == JUMP_PAD && target.y >= origin.y) || ( GetTileAt( cent ) == LADDER && idx > 2) ) {
+			Vec2 cent = tr.Center();
+			bool cancel = false;
+			cancel |= !tr.Intersects( r );
+			cancel |= !IsVisible( rect.Center(), cent );
+			//cancel |= (Tiles[node.first][node.second] == JUMP_PAD && target.y >= origin.y);
+			cancel |= (Tiles[node.first][node.second] == LADDER && idx > 2);
+			//cancel |= (Tiles[node.first-1][node.second] == JUMP_PAD || Tiles[node.first + 1][node.second] == JUMP_PAD) && target.y > origin.y;
+			if (cancel) {
 				if (idx > 1)idx--;
 				break;
 			}
@@ -355,33 +363,32 @@ public:
 		if (idx == path.size()) idx--;
 		node2 = Tcd( path[idx] );
 
+		if (nearJumppad) node2 = Tcd( path[1] );
+
 		Vec2 center = TileRects[node2.first][node2.second].Center() - Vec2( 0, 0.5 );
 
 		DBG( debug.drawLine( rect.Center(), center ) );
 		DBG( debug.drawWireRect( TileRects[node2.first][node2.second] ) );
-		//DBG( debug.drawLine( origin, origin + origin.DirTo(center) * RaycastLevel(origin,origin.DirTo(center) ).second, 0.05, ColorFloat(1,0,0,1) ) );
-		//DBG( debug.drawLine( a, a + a.DirTo(center) * RaycastLevel(a,a.DirTo(center) ).second, 0.05, ColorFloat(1,0,0,1) ) );
-		//DBG( debug.drawLine( b, b + b.DirTo(center) * RaycastLevel(b,b.DirTo(center) ).second, 0.05, ColorFloat(1,0,0,1) ) );
 
 		double groundDist = RaycastLevel( origin, Vec2( 0, -1 ) ).second;
 
-		//double dx = node2.first - node1.first;
-		//double dy = node2.second - node1.second;
 		double dx = center.x - origin.x;
 		double dy = center.y - origin.y;
-		int ox = Sign( dx, 0.05 );
+		int ox = Sign( dx, 0.095 );
 		int oy = Sign( dy, 0.1 );
-
-		//ox = Sign( center.x - origin.x, 0.05 );
-		//oy = Sign( center.y - origin.y, 0.1 );
 
 		//bool jump = GetTileAt( origin ) == EMPTY && jumpState.maxTime > 1e-3;
 		bool jump = false;
-		jump |= ox < 0 && GetTileAt( origin + Vec2( -1, 0 ) ) == WALL;
-		jump |= ox > 0 && GetTileAt( origin + Vec2( 1, 0 ) ) == WALL;
+		jump |= oy >= 0 && ox < 0 && GetTileAt( origin + Vec2( -1, 0 ) ) == WALL;
+		jump |= oy >= 0 && ox > 0 && GetTileAt( origin + Vec2( 1, 0 ) ) == WALL;
 		//jump |= ox < 0 && GetTileAt( origin + Vec2( -1, -1 ) ) == EMPTY && min( groundDist, abs( dx ) ) < abs( dx );
 		//jump |= ox > 0 && GetTileAt( origin + Vec2( 1, -1 ) ) == EMPTY && min( groundDist, abs( dx ) ) < abs( dx );
 		jump |= oy >= 0 && GetTileAt( center + Vec2( 0, -1 ) ) == EMPTY;
+
+		if (target.y-origin.y > 5.5 && jumpState.canCancel) {
+			if (GetTileAt( origin + Vec2( -1, 0 ) ) == JUMP_PAD) ox = -1;
+			if (GetTileAt( origin + Vec2( 1, 0 ) ) == JUMP_PAD) ox = 1;
+		}
 
 		if (ox > 0) action.velocity = 10;
 		else if (ox < 0) action.velocity = -10;
@@ -389,25 +396,6 @@ public:
 
 		if (oy > 0 || jump) action.jump = true;
 		else if (oy < 0) action.jumpDown = true;
-
-		//if (oy != 0) {
-		//	int n = 0;
-		//	while (n < path.size() - 1 && Tcd( path[n] ).first == node1.first) {
-		//		n++;
-		//	}
-		//	ipair node = Tcd( path[n] );
-		//	Rect r = TileRects[node1.first][node1.second];
-		//	double snap = r.Center().x - origin.x;
-		//	if (abs( snap ) > 0) {
-		//		action.velocity = Sign( snap ) * 10;
-		//	}
-		//	if(node.first > node1.first && GetTileAt(origin+Vec2(1,0)) == WALL) action.velocity = 10;
-		//	if(node.first < node1.first && GetTileAt(origin+Vec2(-1,0)) == WALL) action.velocity = -10;
-		//	//if(oy < 0 && ( GetTileAt(origin+Vec2(0.1,-1)) == JUMP_PAD || GetTileAt( origin + Vec2( 0.1, 0 ) ) == JUMP_PAD) ) action.velocity = -10;
-		//	//if(oy < 0 && (GetTileAt( origin + Vec2( -0.1, -1 ) ) == JUMP_PAD || GetTileAt( origin + Vec2( -0.1, 0 ) ) == JUMP_PAD)) action.velocity = 10;
-		//	if(oy < 0 && IsOnTile( rect.Expand(Vec2(0,0.2)) + Vec2(0.1,0.), JUMP_PAD ) ) action.velocity = -10;
-		//	if(oy < 0 && IsOnTile( rect.Expand( Vec2( 0, 0.2 ) ) + Vec2( -0.1, 0. ), JUMP_PAD )) action.velocity = 10;
-		//}
 
 #ifdef  DEBUG
 		if (draw) {
@@ -1610,7 +1598,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 
 				if (isEnemy && u.mines > 0 && CanPlantMine(u.position) && u.hasWeapon && u.weapon.fireTimer < 0.5/*&& u.onGround && !u.onLadder*/) {
 					Rect expl( u.position + Vec2( 0, props.mineSize.y*0.5 ), props.mineExplosionParams.radius );
-					int dmg = 50 * (min( 2, u.mines ) + (u.hasWeapon && u.weapon.type == ROCKET_LAUNCHER ? 1 : 0));
+					int dmg = 50 * (min( 2, u.mines ) + (u.weapon.type == ROCKET_LAUNCHER ? 1 : 0));
 					if (expl.Intersects( GetUnitRect( self ) ) /*&& dmg >= self.health*/) {
 						s -= dmg >= self.health ? (!isFloat? 5000: 10000) : 0;
 					}
@@ -1673,6 +1661,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 		//s = 0;
 
 		if (GetActionDir( enemyReach.second ) == actionDir && unit.hasWeapon) {
+			//if(GetCenter( unit ).Dist( nearestEnemyPos ) > 9 || !IsVisible(GetCenter(unit), nearestEnemyPos ) )
 			s += selfScore <= enemyScore ? (isStuck ? 2000 : 500) : 500;
 			if (selfScore < enemyScore && isStuck && game.currentTick > 3000) s += 2000;
 		}
@@ -1688,8 +1677,10 @@ UnitAction MoveHelper( const Unit & unit ) {
 			s += dist<3 && IsVisible( GetCenter(unit), GetCenter( *get<1>( mine ) ) )?4500:1000;
 			DBG( debug.drawLine( GetCenter( unit ), GetCenter( *get<1>( mine ) ), 0.1, ColorFloat( 1, 1, 0, 0.5 ) ) );
 		}
-		if (enemyHealthpack && GetActionDir( enemyHpReach.second ) == actionDir && GetCenter(unit).Dist( enemyHealthpack->position )-2 < nearestEnemyPos.Dist( enemyHealthpack->position )  ) {
-			s += enemy->health < 80? 2000 : 500;
+		if (enemyHealthpack && GetActionDir( enemyHpReach.second ) == actionDir ) {
+			if (GetCenter( unit ).Dist( enemyHealthpack->position ) - 2 < nearestEnemyPos.Dist( enemyHealthpack->position )) {
+				s += enemy->health <= 80 ? 2000 : 500;
+			}
 		}
 
 		if (score[i] > score[best]) {
@@ -1901,6 +1892,7 @@ UnitAction Quickstart( const Unit &unit ) {
 
 	DBG( debug.print( action.toString() + VARDUMP(simpleMap) + VARDUMP(unit.onGround) + VARDUMP(unit.mines)));
 	DBG( debug.print(VARDUMP(plant.first) + VARDUMP(plant.second) ) );
+	DBG( debug.print( unit.jumpState.toString() ) );
 	//DBG( debug.print( VARDUMP(selfScore) + VARDUMP(enemyScore) + VARDUMP(isStuck) + VARDUMP(teamSize) + VARDUMP(enemyTeamSize) ) );
 
 	return action;

@@ -35,11 +35,11 @@
 #include <cstring>
 #include <tuple>
 
-#ifndef FLT_EPSILON
-#	define FLT_EPSILON 1.192092896e-07F 
-#endif
-
-#define INT_MAX 2147483647
+//#ifndef FLT_EPSILON
+//#	define FLT_EPSILON 1.192092896e-07F 
+//#endif
+//
+//#define INT_MAX 2147483647
 
 #define BIT(x) (1 << (x))
 
@@ -133,13 +133,13 @@ inline double Rad( double deg ) {
 	return deg * (2 * M_PI) / 360;
 }
 
-struct Degree {
-	double degree;
-	Degree( double rad ) : degree( Deg( rad ) ) {};
-	operator double() const {
-		return degree;
-	}
-};
+//struct Degree {
+//	double degree;
+//	Degree( double rad ) : degree( Deg( rad ) ) {};
+//	operator double() const {
+//		return degree;
+//	}
+//};
 
 namespace stdh {
 	template <typename T, typename T2>
@@ -889,17 +889,18 @@ inline void GenCircleVectors( int num, std::vector<Vec3> & vecs ) {
 	}
 }
 
-inline bool IsInside( Vec3 p, Vec3 min, Vec3 max ) {
-	return (p.x > min.x && p.x < max.x) && (p.y > min.y && p.y < max.y) && (p.z > min.z && p.z < max.z);
-}
+class Point {
+	int x, y;
 
+	Point() {};
+	Point( int inX, int inY ) : x( inX ), y( inY ) {};
+};
 
 class Graph {
 public:
 	typedef std::set<ipair> node;
 
 	std::vector< node > adj;
-	//std::vector< int > ids;
 
 	Graph( int V = 0 ) {
 		adj.resize( V );
@@ -1098,6 +1099,18 @@ public:
 		}
 	}
 
+};
+
+template <int Width, int Height, typename Node = int>
+class Grid {
+	Node cells[Width][Height];
+
+	inline static int Tid( int x, int y ) {
+		return y * Width + x;
+	}
+	inline static Point Tcd( int id ) {
+		return Point( id % Width, id / Width );
+	}
 };
 
 #endif // ! _H_HELPERS
