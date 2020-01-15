@@ -227,6 +227,7 @@ public:
 	Vec2 origin;
 	Rect rect;
 	JumpState jumpState;
+	bool onGround, onLadder;
 
 	void InitPathing() {
 		bfs.resize( 40 * 30 );
@@ -256,7 +257,7 @@ public:
 					int h = j+1;
 					do {
 						if (h > 29) break;
-						bfs[Tid( i, h )] = h-j;
+						bfs[Tid( i, h )] = min(h-j,6);
 						h++;
 					} while (Tiles[i][h] == Tile::EMPTY);
 				}
@@ -289,6 +290,8 @@ public:
 		origin = from;
 		rect = GetUnitRect( u );
 		jumpState = u.jumpState;
+		onGround = u.onGround;
+		onLadder = u.onLadder;
 		int id = Tid( (int)floor( from.x ), (int)floor( from.y ) );
 
 		preds.clear();
@@ -326,6 +329,8 @@ public:
 		Tile tile = GetTileAt( target );
 		vint path = Graph::PredcessorToPath( id, preds );
 
+		const double groundDist = RaycastLevel( origin, Vec2( 0, -1 ) ).second;
+
 		if (path.size() < 1) return pair<int, UnitAction>( -1, UnitAction() );
 
 		if (path.size() == 1) {
@@ -339,20 +344,27 @@ public:
 		ipair node1 = Tcd( path[0] );
 		ipair node2 = Tcd( path[1] );
 
-		bool nearJumppad = IsOnTile( rect.Expand(Vec2(0.5,1.5)), JUMP_PAD );
+		//bool nearJumppad = IsOnTile( rect.Expand(Vec2(0.5,1)), JUMP_PAD );
+		bool nearJumppad = IsOnTile( Rect( rect.Min+Vec2(-0.5,-2.5), rect.Max+Vec2(0.5,0.5) ), JUMP_PAD );
+		bool nearJumppad2 = false;
 
 		int idx = 0;
-		//Rect r( rect.Center(), 6 );
-		Rect r( rect.Center(), max(ceil(jumpState.maxTime)*10,2.) );
+		double radius = max( ceil( jumpState.maxTime ) * 10, 2. );
+		Rect r( origin, radius );
+		if (jumpState.maxTime == 0.) {
+			r = Rect( origin, groundDist );
+			r += Vec2( 0, -r.Size().y*0.5 );
+		}
 		while (idx < path.size()) {
 			ipair node = Tcd( path[idx] );
 			Rect tr = TileRects[node.first][node.second];
 			Vec2 cent = tr.Center();
+			nearJumppad2 |= idx > 0 && (Tiles[node.first - 1][node.second] == JUMP_PAD || Tiles[node.first + 1][node.second] == JUMP_PAD) && node.second == node1.second;
 			bool cancel = false;
 			cancel |= !tr.Intersects( r );
 			cancel |= !IsVisible( rect.Center(), cent );
 			//cancel |= (Tiles[node.first][node.second] == JUMP_PAD && target.y >= origin.y);
-			cancel |= (Tiles[node.first][node.second] == LADDER && idx > 2);
+			cancel |= (Tiles[node.first][node.second] == LADDER && idx > 2 && !simpleMap);
 			//cancel |= (Tiles[node.first-1][node.second] == JUMP_PAD || Tiles[node.first + 1][node.second] == JUMP_PAD) && target.y > origin.y;
 			if (cancel) {
 				if (idx > 1)idx--;
@@ -363,31 +375,39 @@ public:
 		if (idx == path.size()) idx--;
 		node2 = Tcd( path[idx] );
 
-		if (nearJumppad) node2 = Tcd( path[1] );
+		if (nearJumppad && path.size()>1) node2 = Tcd( path[1] );
+		//if (nearJumppad && path.size()>2) node2 = Tcd( path[2] );
 
 		Vec2 center = TileRects[node2.first][node2.second].Center() - Vec2( 0, 0.5 );
 
 		DBG( debug.drawLine( rect.Center(), center ) );
 		DBG( debug.drawWireRect( TileRects[node2.first][node2.second] ) );
 
-		double groundDist = RaycastLevel( origin, Vec2( 0, -1 ) ).second;
-
 		double dx = center.x - origin.x;
 		double dy = center.y - origin.y;
 		int ox = Sign( dx, 0.095 );
 		int oy = Sign( dy, 0.1 );
 
-		//bool jump = GetTileAt( origin ) == EMPTY && jumpState.maxTime > 1e-3;
+		int height = 1;
+		while (Tiles[node1.first][node1.second - height] == EMPTY) height++;
+		height--;
+		height = min( height, node1.second - node2.second );
+
+		int gap = 1;
+		if(ox != 0 ) while (Tiles[node1.first + gap * ox][node1.second-height-1] == EMPTY) gap++;
+		gap--;
+
+		DBG( if(gap) debug.drawWireRect( TileRects[node1.first + gap*ox][node1.second],0.1,ColorFloat(1,1,0,1) ) );
+
 		bool jump = false;
 		jump |= oy >= 0 && ox < 0 && GetTileAt( origin + Vec2( -1, 0 ) ) == WALL;
 		jump |= oy >= 0 && ox > 0 && GetTileAt( origin + Vec2( 1, 0 ) ) == WALL;
-		//jump |= ox < 0 && GetTileAt( origin + Vec2( -1, -1 ) ) == EMPTY && min( groundDist, abs( dx ) ) < abs( dx );
-		//jump |= ox > 0 && GetTileAt( origin + Vec2( 1, -1 ) ) == EMPTY && min( groundDist, abs( dx ) ) < abs( dx );
-		jump |= oy >= 0 && GetTileAt( center + Vec2( 0, -1 ) ) == EMPTY;
+		jump |= /*oy >= 0 &&*/ GetTileAt( origin + Vec2( ox*moveDelta, -moveDelta ) ) == EMPTY && gap > height;
 
-		if (target.y-origin.y > 5.5 && jumpState.canCancel) {
+		if (target.y-origin.y > 5.5 && /*jumpState.canCancel*/ !IsOnTile(rect,JUMP_PAD)) {
 			if (GetTileAt( origin + Vec2( -1, 0 ) ) == JUMP_PAD) ox = -1;
 			if (GetTileAt( origin + Vec2( 1, 0 ) ) == JUMP_PAD) ox = 1;
+			if (nearJumppad2) oy = 0;
 		}
 
 		if (ox > 0) action.velocity = 10;
@@ -1421,8 +1441,10 @@ UnitAction AimHelper( const Unit &unit, const Unit & enemy ) {
 
 	const double spreadFactor = unit.weapon.spread / unit.weapon.params.maxSpread;
 
+	const double smoothAngle = unit.weapon.type != ROCKET_LAUNCHER ? 30 : 20;
+
 	bool smooth = false;
-	if (abs(angleDelta) < Rad(30) && abs(angleDelta) > aimSpeed && spreadFactor < 1.0) {
+	if (abs(angleDelta) < Rad( smoothAngle ) && abs(angleDelta) > aimSpeed && spreadFactor < 1.0) {
 		aim = lastAim.Rotate( -Sign( angleDelta ) * aimSpeed );
 		smooth = true;
 	}
@@ -1533,9 +1555,9 @@ UnitAction MoveHelper( const Unit & unit ) {
 
 		double & s = score[i];
 
-		bool spotEnemy = false;
-
 		const int maxTicks = 30;
+
+		bool canExplode = false;
 
 		for (int tick = 0; tick < maxTicks; tick++) {
 			if (sim.bullets.empty()) {
@@ -1598,9 +1620,18 @@ UnitAction MoveHelper( const Unit & unit ) {
 
 				if (isEnemy && u.mines > 0 && CanPlantMine(u.position) && u.hasWeapon && u.weapon.fireTimer < 0.5/*&& u.onGround && !u.onLadder*/) {
 					Rect expl( u.position + Vec2( 0, props.mineSize.y*0.5 ), props.mineExplosionParams.radius );
-					int dmg = 50 * (min( 2, u.mines ) + (u.weapon.type == ROCKET_LAUNCHER ? 1 : 0));
+					const int dmg = 50 * (min( 2, u.mines ) + (u.weapon.type == ROCKET_LAUNCHER ? 1 : 0));
 					if (expl.Intersects( GetUnitRect( self ) ) /*&& dmg >= self.health*/) {
-						s -= dmg >= self.health ? (!isFloat? 5000: 10000) : 0;
+						s -= dmg >= self.health ? (!isFloat? 6000: 10000) : 0;
+					}
+				}
+
+				if (isEnemy && !canExplode && self.mines && CanPlantMine( self.position ) && self.hasWeapon && self.weapon.fireTimer-tick/60. < 0.4) {
+					Rect expl( self.position + Vec2( 0, props.mineSize.y*0.5 ), props.mineExplosionParams.radius );
+					const int dmg = 50 * (min( 2, self.mines ) + (self.weapon.type == ROCKET_LAUNCHER ? 1 : 0));
+					if (expl.Intersects( GetUnitRect( u ) )) {
+						canExplode = true;
+						s += 2000;
 					}
 				}
 
@@ -1621,8 +1652,8 @@ UnitAction MoveHelper( const Unit & unit ) {
 						range = max( range, self.weapon.params.explosion.radius + 1 );
 					}
 					if (selfScore < enemyScore && isStuck && game.currentTick > 3000) range = 3;
-					//if (unit.mines >= 2) range = 0;
-					//if (selfScore > enemyScore && !simpleMap) range = 20;
+					//if (unit.mines >= 2 && u.onGround && !u.onLadder) range = 0;
+					if (selfScore > enemyScore) range = dist;
 					if (dist > range) {
 						if (visible) {
 							s += (1 - dist / maxDist) * 2300;
@@ -1674,7 +1705,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 		}
 		if (get<1>( mine ) && unit.mines < 2 && GetActionDir( get<2>( mine ) ) == actionDir) {
 			double dist = (get<1>( mine ))->position.Dist( GetCenter( unit ) );
-			s += dist<3 && IsVisible( GetCenter(unit), GetCenter( *get<1>( mine ) ) )?4500:1000;
+			s += dist<5 && IsVisible( GetCenter(unit), GetCenter( *get<1>( mine ) ) )?5000:1000;
 			DBG( debug.drawLine( GetCenter( unit ), GetCenter( *get<1>( mine ) ), 0.1, ColorFloat( 1, 1, 0, 0.5 ) ) );
 		}
 		if (enemyHealthpack && GetActionDir( enemyHpReach.second ) == actionDir ) {
