@@ -1,3 +1,0 @@
-Player1: codeside.exe Player2: v8.7.exe
-Score: 17255/10725
-Wins: 8/2 (0)
