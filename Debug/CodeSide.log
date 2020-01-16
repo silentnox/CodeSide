@@ -1,8 +1,0 @@
-﻿  MyStrategy.cpp
-g:\code\codeside\mystrategy.cpp(486): warning C4305: 'argument': truncation from 'double' to 'float'
-g:\code\codeside\mystrategy.cpp(559): warning C4189: 'bp': local variable is initialized but not referenced
-g:\code\codeside\mystrategy.cpp(709): warning C4305: 'argument': truncation from 'double' to 'float'
-g:\code\codeside\mystrategy.cpp(684): warning C4189: 'bp': local variable is initialized but not referenced
-g:\code\codeside\mystrategy.cpp(745): warning C4305: 'argument': truncation from 'double' to 'float'
-g:\code\codeside\mystrategy.cpp(771): warning C4702: unreachable code
-  CodeSide.vcxproj -> g:\Code\CodeSide\localrunner\CodeSide.exe

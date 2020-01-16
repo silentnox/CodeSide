@@ -264,7 +264,7 @@ public:
 				if (t == Tile::JUMP_PAD) {
 					bfs[Tid( i, j )] = 1000;
 					bfs[Tid( i, j+1 )] = 1000;
-					bfs[Tid( i, j+2 )] = 1000;
+					//bfs[Tid( i, j+2 )] = 1000;
 					bfs[Tid( i, j-1 )] = 1000;
 					if(j>1)bfs[Tid( i, j-2 )] = 1000;
 				}
@@ -345,7 +345,7 @@ public:
 		ipair node2 = Tcd( path[1] );
 
 		//bool nearJumppad = IsOnTile( rect.Expand(Vec2(0.5,1)), JUMP_PAD );
-		bool nearJumppad = IsOnTile( Rect( rect.Min+Vec2(-0.5,-2.5), rect.Max+Vec2(0.5,0.5) ), JUMP_PAD );
+		bool nearJumppad = IsOnTile( Rect( rect.Min+Vec2(-0.3,-1.5), rect.Max+Vec2(0.3,0.5) ), JUMP_PAD );
 		bool nearJumppad2 = false;
 
 		int idx = 0;
@@ -1631,7 +1631,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 					const int dmg = 50 * (min( 2, self.mines ) + (self.weapon.type == ROCKET_LAUNCHER ? 1 : 0));
 					if (expl.Intersects( GetUnitRect( u ) )) {
 						canExplode = true;
-						s += 2000;
+						s += 3000;
 					}
 				}
 
@@ -1653,7 +1653,7 @@ UnitAction MoveHelper( const Unit & unit ) {
 					}
 					if (selfScore < enemyScore && isStuck && game.currentTick > 3000) range = 3;
 					//if (unit.mines >= 2 && u.onGround && !u.onLadder) range = 0;
-					if (selfScore > enemyScore) range = dist;
+					//if (selfScore > enemyScore) range = dist;
 					if (dist > range) {
 						if (visible) {
 							s += (1 - dist / maxDist) * 2300;

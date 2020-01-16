@@ -3,6 +3,7 @@
 Debug/
 Release/
 X64/
+backup/
 
 *.zip
 *.pdb
@@ -10,3 +11,5 @@ X64/
 
 *.ilk
 *.suo
+
+/localrunner/replays
